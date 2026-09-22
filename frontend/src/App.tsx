@@ -1,10 +1,9 @@
-import { BrowserRouter } from "react-router-dom";
-import { AppRoutes } from "./routes/AppRoutes";
+import { NotaFiscalPage } from "./pages/NotaFiscal";
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <div className="content">
+      <NotaFiscalPage />
+    </div>
   );
 }
