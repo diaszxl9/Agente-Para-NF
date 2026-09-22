@@ -44,8 +44,11 @@ def crud_router(*, prefix, tag, model, schema_in, schema_out, search_fields, ord
         elif status == "inativos":
             stmt = stmt.where(model.ativo.is_(False))
         if q and q.strip():
-            termo = f"%{q.strip()}%"
-            stmt = stmt.where(or_(*[getattr(model, campo).like(termo) for campo in search_fields]))
+            escapado = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            termo = f"%{escapado}%"
+            stmt = stmt.where(
+                or_(*[getattr(model, campo).like(termo, escape="\\") for campo in search_fields])
+            )
         stmt = stmt.order_by(*[getattr(model, c) for c in order_by]).limit(limit).offset(offset)
         return db.scalars(stmt).all()
 

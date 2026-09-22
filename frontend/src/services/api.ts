@@ -1,4 +1,5 @@
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export class ApiError extends Error {
   status: number;
@@ -25,9 +26,12 @@ function mensagemDoErro(body: unknown, status: number): string {
 export async function request<T>(path: string, init?: RequestInit, timeoutMs = 30_000): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const headers = new Headers(init?.headers);
+  if (API_KEY) headers.set("X-API-Key", API_KEY);
+
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${path}`, { ...init, signal: controller.signal });
+    response = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal: controller.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new ApiError("A requisição demorou demais e foi cancelada.", 0);

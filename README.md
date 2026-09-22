@@ -39,6 +39,24 @@ npm run dev
 As tabelas e as categorias de despesa iniciais são criadas automaticamente na primeira conexão com o MySQL.
 O Vite encaminha `/api` para `http://127.0.0.1:8000` (altere com `VITE_PROXY_TARGET`, ou defina `VITE_API_URL`).
 
+## Autenticação da API
+
+Por padrão (`API_KEY` vazia no `.env`) a API fica **aberta**, sem autenticação — adequado apenas para uso local. Para
+protegê-la (recomendado antes de expor o backend em qualquer rede além do seu próprio computador), defina `API_KEY` no
+`.env` da raiz; toda rota em `/api` (exceto `/api/health`) passa a exigir o header `X-API-Key` com o mesmo valor.
+
+No frontend, defina `VITE_API_KEY` (em `frontend/.env`) com o mesmo valor para que as requisições enviem o header
+automaticamente. Importante: como é uma chave compartilhada exposta no bundle do navegador, ela impede acesso casual/
+scanners automatizados, mas **não substitui** um sistema de login por usuário — não é segredo perante quem tem acesso
+ao frontend.
+
+## Rate limiting da extração
+
+`POST /api/notas-fiscais/extrair` chama a API paga do Gemini a cada requisição, então tem um limite de taxa próprio
+(`RATE_LIMIT_EXTRACAO` no `.env`, padrão `20/minute`), aplicado por API key quando `API_KEY` está configurada, ou por
+IP quando não está. Ao estourar o limite, a resposta é `429` e o Gemini **não é chamado**. Ajuste o valor conforme o
+volume real de uso (ex.: `100/hour` para lotes maiores).
+
 A extração (`/nota-fiscal`) **não depende do MySQL para funcionar**: se o banco estiver fora do ar, o backend usa as
 categorias padrão. Já os cadastros e o dashboard exigem o MySQL.
 

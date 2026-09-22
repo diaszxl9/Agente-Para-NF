@@ -144,3 +144,16 @@ def test_sem_chave_gemini_retorna_503(client, monkeypatch):
     assert r.status_code == 503
     assert "GEMINI_API_KEY" in r.json()["detail"]
     get_gemini_service.cache_clear()
+
+
+def test_rate_limit_bloqueia_apos_o_limite(client, usar_gemini, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "RATE_LIMIT_EXTRACAO", "2/minute")
+    fake = usar_gemini(FakeGemini([json.dumps(JSON_OK), json.dumps(JSON_OK)]))
+
+    assert enviar(client).status_code == 200
+    assert enviar(client).status_code == 200
+    bloqueado = enviar(client)
+    assert bloqueado.status_code == 429
+    assert fake.chamadas == 2  # a 3ª requisição nem chega a chamar o Gemini

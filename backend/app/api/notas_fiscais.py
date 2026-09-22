@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from app.config import Settings, get_settings
 from app.database.session import listar_categorias
+from app.rate_limit import limiter
 from app.schemas.nota_fiscal import ExtracaoResponse
 from app.services.extraction_service import extrair_nota_fiscal
 from app.services.gemini_service import GeminiService
@@ -41,6 +42,7 @@ def validar_pdf(nome: str, content_type: str | None, data: bytes, limite_mb: int
 
 
 @router.post("/extrair", response_model=ExtracaoResponse)
+@limiter.limit(lambda: get_settings().RATE_LIMIT_EXTRACAO)
 def extrair(
     request: Request,
     arquivo: UploadFile = File(..., description="PDF da nota fiscal"),
