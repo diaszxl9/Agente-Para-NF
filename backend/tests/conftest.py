@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from app.api.notas_fiscais import get_gemini_service
 from app.database import session as db_session
 from app.main import app
+from app.rate_limit import limiter
 from app.services.gemini_service import GeminiError
 
 PDF_MINIMO = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
@@ -29,6 +30,13 @@ class FakeGemini:
 @pytest.fixture(autouse=True)
 def banco_memoria():
     db_session.configure_engine("sqlite://")
+    yield
+
+
+@pytest.fixture(autouse=True)
+def limiter_zerado():
+    """O contador do rate limit é global (memória do processo): zera para um teste não afetar o outro."""
+    limiter.reset()
     yield
 
 

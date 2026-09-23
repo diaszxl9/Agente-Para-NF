@@ -62,7 +62,7 @@ export function NotaFiscalPage() {
 
         {processando && (
           <p className="card-hint center" role="status">
-            lendo a nota fiscal. Isso pode levar alguns segundos.
+            Lendo a nota fiscal. Isso pode levar alguns segundos.
           </p>
         )}
 

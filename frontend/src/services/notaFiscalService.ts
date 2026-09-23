@@ -1,7 +1,9 @@
 import type { ExtracaoResponse } from "../types/notaFiscal";
 import { request } from "./api";
 
-const EXTRACTION_TIMEOUT_MS = 180_000;
+// Deve cobrir o pior caso do backend: 2 chamadas ao Gemini (nova tentativa se o JSON vier inválido) de até
+// GEMINI_TIMEOUT_SECONDS (120 s) cada, mais uma margem. Com 180 s a tela desistia antes do servidor terminar.
+const EXTRACTION_TIMEOUT_MS = 260_000;
 
 export function extrairNotaFiscal(arquivo: File): Promise<ExtracaoResponse> {
   const form = new FormData();

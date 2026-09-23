@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.6-flash"
     GEMINI_TIMEOUT_SECONDS: int = 120
+    GEMINI_MAX_TENTATIVAS: int = 4  # 1 chamada + retentativas em erros 5xx transitórios
 
     API_KEY: str = ""
 

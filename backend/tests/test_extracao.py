@@ -15,8 +15,10 @@ JSON_OK = {
 }
 
 
-def enviar(client, conteudo=PDF_MINIMO, nome="nf.pdf", tipo="application/pdf"):
-    return client.post("/api/notas-fiscais/extrair", files={"arquivo": (nome, conteudo, tipo)})
+def enviar(client, conteudo=PDF_MINIMO, nome="nf.pdf", tipo="application/pdf", headers=None):
+    return client.post(
+        "/api/notas-fiscais/extrair", files={"arquivo": (nome, conteudo, tipo)}, headers=headers
+    )
 
 
 def test_extracao_sucesso(client, usar_gemini):
@@ -157,3 +159,17 @@ def test_rate_limit_bloqueia_apos_o_limite(client, usar_gemini, monkeypatch):
     bloqueado = enviar(client)
     assert bloqueado.status_code == 429
     assert fake.chamadas == 2  # a 3ª requisição nem chega a chamar o Gemini
+
+
+def test_rate_limit_nao_e_burlado_com_x_api_key_aleatorio(client, usar_gemini, monkeypatch):
+    """Sem API_KEY configurada, variar o header X-API-Key não pode gerar um bucket novo a cada requisição."""
+    from app.config import get_settings
+
+    assert get_settings().API_KEY == ""
+    monkeypatch.setattr(get_settings(), "RATE_LIMIT_EXTRACAO", "2/minute")
+    fake = usar_gemini(FakeGemini([json.dumps(JSON_OK), json.dumps(JSON_OK)]))
+
+    assert enviar(client, headers={"X-API-Key": "falsa-1"}).status_code == 200
+    assert enviar(client, headers={"X-API-Key": "falsa-2"}).status_code == 200
+    assert enviar(client, headers={"X-API-Key": "falsa-3"}).status_code == 429
+    assert fake.chamadas == 2

@@ -30,7 +30,7 @@ def _nome_seguro(filename: str | None) -> str:
     return clean_text(base, 200) or "nota-fiscal.pdf"
 
 
-def validar_pdf(nome: str, content_type: str | None, data: bytes, limite_mb: int) -> None:
+def validar_pdf(nome: str, content_type: str | None, data: bytes) -> None:
     if not nome.lower().endswith(".pdf"):
         raise HTTPException(status_code=415, detail="Envie um arquivo com extensão .pdf.")
     if content_type and content_type.split(";")[0].strip().lower() not in PDF_CONTENT_TYPES:
@@ -58,6 +58,6 @@ def extrair(
     data = arquivo.file.read(limite + 1)
     if len(data) > limite:
         raise HTTPException(status_code=413, detail=f"O arquivo excede o limite de {settings.MAX_UPLOAD_MB} MB.")
-    validar_pdf(nome, arquivo.content_type, data, settings.MAX_UPLOAD_MB)
+    validar_pdf(nome, arquivo.content_type, data)
 
     return extrair_nota_fiscal(data, nome, gemini, listar_categorias())

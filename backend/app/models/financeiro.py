@@ -6,9 +6,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AtivoMixin, Base, TimestampMixin
 
-STATUS_CONTA = ("ABERTA", "PAGA", "CANCELADA")
-STATUS_RECEBIDA = ("ABERTA", "RECEBIDA", "CANCELADA")
-STATUS_PARCELA = ("ABERTA", "PAGA", "CANCELADA")
+STATUS_CONTA_PAGAR = ("ABERTA", "PAGA", "CANCELADA")
+STATUS_CONTA_RECEBER = ("ABERTA", "RECEBIDA", "CANCELADA")
+# Uma parcela pertence a uma conta a pagar (PAGA) OU a uma conta a receber (RECEBIDA).
+STATUS_PARCELA = ("ABERTA", "PAGA", "RECEBIDA", "CANCELADA")
+
+
+def _status_in(coluna: str, valores: tuple[str, ...]) -> str:
+    return f"{coluna} IN ({','.join(repr(v) for v in valores)})"
 
 
 class NotaFiscal(Base, TimestampMixin):
@@ -44,7 +49,7 @@ class ItemNota(Base, TimestampMixin):
 class ContaPagar(Base, TimestampMixin, AtivoMixin):
     __tablename__ = "contas_pagar"
     __table_args__ = (
-        CheckConstraint("status IN ('ABERTA','PAGA','CANCELADA')", name="ck_contas_pagar_status"),
+        CheckConstraint(_status_in("status", STATUS_CONTA_PAGAR), name="ck_contas_pagar_status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -66,7 +71,7 @@ class ContaPagar(Base, TimestampMixin, AtivoMixin):
 class ContaReceber(Base, TimestampMixin, AtivoMixin):
     __tablename__ = "contas_receber"
     __table_args__ = (
-        CheckConstraint("status IN ('ABERTA','RECEBIDA','CANCELADA')", name="ck_contas_receber_status"),
+        CheckConstraint(_status_in("status", STATUS_CONTA_RECEBER), name="ck_contas_receber_status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -93,7 +98,7 @@ class Parcela(Base, TimestampMixin):
             "(conta_pagar_id IS NULL AND conta_receber_id IS NOT NULL)",
             name="ck_parcelas_uma_conta",
         ),
-        CheckConstraint("status IN ('ABERTA','PAGA','CANCELADA')", name="ck_parcelas_status"),
+        CheckConstraint(_status_in("status", STATUS_PARCELA), name="ck_parcelas_status"),
         UniqueConstraint("conta_pagar_id", "numero", name="uq_parcela_conta_pagar_numero"),
         UniqueConstraint("conta_receber_id", "numero", name="uq_parcela_conta_receber_numero"),
         Index("ix_parcelas_data_vencimento", "data_vencimento"),

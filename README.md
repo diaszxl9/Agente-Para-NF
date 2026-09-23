@@ -3,7 +3,7 @@
 Aplicação web para extrair dados de notas fiscais em PDF com o Google Gemini, classificar a despesa e
 visualizar o resultado (formatado e em JSON). Base para o módulo financeiro (cadastros, contas a pagar/receber).
 
-- **Frontend:** React + TypeScript + Vite + React Router (`frontend/`)
+- **Frontend:** React + TypeScript + Vite (`frontend/`)
 - **Backend:** Python + FastAPI + Pydantic + SQLAlchemy (`backend/`)
 - **IA:** Google Gemini (chave somente no backend)
 - **Banco principal:** MySQL · **MongoDB:** opcional (documentos brutos)
@@ -28,17 +28,19 @@ Linux/macOS estão logo depois.
 Copy-Item .env.example .env
 # No MySQL: CREATE DATABASE gestao_financeira CHARACTER SET utf8mb4;
 
-# 2) Backend: cria o ambiente virtual e instala as dependências
-cd backend
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-cd ..
+# 2) Backend: cria o ambiente virtual E instala todas as dependências (recria o .venv se estiver incompleto)
+powershell -ExecutionPolicy Bypass -File backend\setup.ps1
 
 # 3) Frontend: instala as dependências
 cd frontend
 npm install
 cd ..
 ```
+
+> **Por que não basta `python -m venv .venv`?** Esse comando só **cria um ambiente virtual vazio**: ele nunca instala
+> pacotes. As dependências vêm do `pip install -r requirements.txt`, e o arquivo fica em `backend/`. O `setup.ps1` faz
+> os dois passos, confere se o `pip` existe, roda `pip check` e importa a aplicação para provar que ficou funcional.
+> Pode rodá-lo de novo sempre que quiser; ele também repara um `.venv` que ficou pela metade.
 
 ### Dia a dia (iniciar o projeto)
 
@@ -64,7 +66,7 @@ funciona. Se o PowerShell bloquear o script, rode uma vez `Set-ExecutionPolicy -
 
 ```bash
 cp .env.example .env
-cd backend && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt && cd ..
+bash backend/setup.sh
 cd frontend && npm install && cd ..
 
 # Para iniciar (um terminal para cada)
@@ -85,8 +87,8 @@ cd frontend && npm run dev
 
 | Erro | Causa | Solução |
 | --- | --- | --- |
-| `No module named 'fastapi'` / `uvicorn` não reconhecido | Dependências não instaladas no `.venv` | `cd backend` e depois `.venv\Scripts\python.exe -m pip install -r requirements.txt` |
-| `No module named pip` | `.venv` criado incompleto | `.venv\Scripts\python.exe -m ensurepip --upgrade` e instale as dependências de novo |
+| `No module named 'fastapi'` / `uvicorn` não reconhecido | Só rodou `python -m venv`, que não instala pacotes | `powershell -ExecutionPolicy Bypass -File backend\setup.ps1` |
+| `No module named pip`, ou `Acesso negado` ao criar o `.venv` | Criação interrompida: antivírus/indexador/VS Code seguraram o `python.exe` recém-copiado | Feche terminais e o editor que usam o `.venv` e rode o `setup.ps1` de novo (ele apaga o `.venv` incompleto e tenta até 3 vezes). Se persistir, exclua a pasta do projeto do antivírus |
 | `No module named 'app'` | Comando executado fora de `backend/` | Rode o uvicorn de dentro da pasta `backend` |
 | Porta 8000 em uso | Outro backend já está rodando | Feche o outro terminal ou use `--port 8001` (e ajuste `VITE_PROXY_TARGET`) |
 
