@@ -42,7 +42,6 @@ export function NotaFiscalPage() {
     <div className="page page-narrow">
       <header className="page-header center">
         <h1>Extração de Dados de Nota Fiscal</h1>
-        <p>Carregue um PDF da nota fiscal e extraia os dados automaticamente usando IA</p>
       </header>
 
       <section className="card">
@@ -63,7 +62,7 @@ export function NotaFiscalPage() {
 
         {processando && (
           <p className="card-hint center" role="status">
-            A IA está lendo a nota fiscal. Isso pode levar alguns segundos.
+            lendo a nota fiscal. Isso pode levar alguns segundos.
           </p>
         )}
 
