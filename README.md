@@ -18,26 +18,77 @@ Frontend (React) --HTTP/REST--> FastAPI --> MySQL
 
 Pré-requisitos: Python 3.11+, Node 20+, MySQL 8 e uma chave do Gemini.
 
-```bash
-# 1) Configuração
-cp .env.example .env        # preencha GEMINI_API_KEY e DATABASE_URL
-# no MySQL: CREATE DATABASE gestao_financeira CHARACTER SET utf8mb4;
+Os comandos abaixo são para **PowerShell (Windows)**, sempre a partir da raiz do projeto. Os equivalentes para
+Linux/macOS estão logo depois.
 
-# 2) Backend (http://localhost:8000, docs em /docs)
+### Primeira vez (instalação)
+
+```powershell
+# 1) Configuração: copie o .env e preencha GEMINI_API_KEY e DATABASE_URL
+Copy-Item .env.example .env
+# No MySQL: CREATE DATABASE gestao_financeira CHARACTER SET utf8mb4;
+
+# 2) Backend: cria o ambiente virtual e instala as dependências
 cd backend
 python -m venv .venv
-.venv\Scripts\activate      # Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+cd ..
 
-# 3) Frontend (http://localhost:5173) — em outro terminal
+# 3) Frontend: instala as dependências
 cd frontend
 npm install
+cd ..
+```
+
+### Dia a dia (iniciar o projeto)
+
+Abra **dois terminais** na raiz do projeto e confira se o MySQL está ligado.
+
+```powershell
+# Terminal 1: backend em http://localhost:8000 (documentação em /docs)
+cd backend
+.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+```powershell
+# Terminal 2: frontend em http://localhost:5173
+cd frontend
 npm run dev
 ```
 
-As tabelas e as categorias de despesa iniciais são criadas automaticamente na primeira conexão com o MySQL.
-O Vite encaminha `/api` para `http://127.0.0.1:8000` (altere com `VITE_PROXY_TARGET`, ou defina `VITE_API_URL`).
+Chamar o Python do `.venv` diretamente (`.venv\Scripts\python.exe -m ...`) dispensa ativar o ambiente virtual. Se
+preferir ativar, use `.venv\Scripts\Activate.ps1`. Depois disso, `uvicorn app.main:app --reload --port 8000` também
+funciona. Se o PowerShell bloquear o script, rode uma vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+### Linux/macOS
+
+```bash
+cp .env.example .env
+cd backend && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt && cd ..
+cd frontend && npm install && cd ..
+
+# Para iniciar (um terminal para cada)
+cd backend && .venv/bin/python -m uvicorn app.main:app --reload --port 8000
+cd frontend && npm run dev
+```
+
+### Observações
+
+- As tabelas e as categorias de despesa iniciais são criadas automaticamente na primeira conexão com o MySQL.
+- O `.env` fica na **raiz** do projeto, não em `backend/`.
+- O Vite encaminha `/api` para `http://127.0.0.1:8000` (altere com `VITE_PROXY_TARGET` ou defina `VITE_API_URL`).
+- Os avisos `Banco de dados indisponível` e `API_KEY não configurada` na inicialização não impedem o backend de subir:
+  o primeiro indica que o MySQL está desligado ou que o `DATABASE_URL` está errado; o segundo está explicado em
+  [Autenticação da API](#autenticação-da-api).
+
+### Problemas comuns
+
+| Erro | Causa | Solução |
+| --- | --- | --- |
+| `No module named 'fastapi'` / `uvicorn` não reconhecido | Dependências não instaladas no `.venv` | `cd backend` e depois `.venv\Scripts\python.exe -m pip install -r requirements.txt` |
+| `No module named pip` | `.venv` criado incompleto | `.venv\Scripts\python.exe -m ensurepip --upgrade` e instale as dependências de novo |
+| `No module named 'app'` | Comando executado fora de `backend/` | Rode o uvicorn de dentro da pasta `backend` |
+| Porta 8000 em uso | Outro backend já está rodando | Feche o outro terminal ou use `--port 8001` (e ajuste `VITE_PROXY_TARGET`) |
 
 ## Autenticação da API
 
@@ -97,7 +148,14 @@ Nenhum cadastro é excluído fisicamente: a API não tem `DELETE`; existem `PATC
 
 ## Testes
 
-```bash
-cd backend && python -m pytest        # SQLite em memória, Gemini simulado
-cd frontend && npm run build          # typecheck + build
+```powershell
+# Backend: SQLite em memória, Gemini simulado
+cd backend
+.venv\Scripts\python.exe -m pytest
+cd ..
+
+# Frontend: typecheck + build
+cd frontend
+npm run build
+cd ..
 ```
