@@ -51,7 +51,7 @@ echo "Instalando dependências..."
 # 4) Verifica: dependências consistentes e aplicação importável
 "$VENV_PYTHON" -m pip check
 (cd "$BACKEND_DIR" && "$VENV_PYTHON" -c \
-  "import app.main, cryptography, multipart, pymongo, pytest, httpx; print('Aplicação importada com sucesso.')")
+  "import app.main, multipart, pytest, httpx; print('Aplicação importada com sucesso.')")
 
 echo
 echo "Backend pronto. Para iniciar:"

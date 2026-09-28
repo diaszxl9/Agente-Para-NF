@@ -5,9 +5,9 @@ from pathlib import PurePosixPath
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from app.config import Settings, get_settings
-from app.database.session import listar_categorias
 from app.rate_limit import limiter
 from app.schemas.nota_fiscal import ExtracaoResponse
+from app.services.categorias import CATEGORIAS
 from app.services.extraction_service import extrair_nota_fiscal
 from app.services.gemini_service import GeminiService
 from app.services.sanitize import clean_text
@@ -60,4 +60,4 @@ def extrair(
         raise HTTPException(status_code=413, detail=f"O arquivo excede o limite de {settings.MAX_UPLOAD_MB} MB.")
     validar_pdf(nome, arquivo.content_type, data)
 
-    return extrair_nota_fiscal(data, nome, gemini, listar_categorias())
+    return extrair_nota_fiscal(data, nome, gemini, CATEGORIAS)

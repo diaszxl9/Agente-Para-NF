@@ -9,9 +9,6 @@
   --primary-soft: #eef0ff;
   --ok: #0f7b4b;
   --ok-soft: #e3f6ec;
-  --warn: #8a5a00;
-  --warn-soft: #fff6dd;
-  --warn-border: #f2dc9b;
   --danger: #b42318;
   --danger-soft: #fdecea;
   --danger-border: #f5c2bd;
@@ -86,14 +83,6 @@ input {
   margin-top: 4px;
 }
 
-.page-header.row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
 .page-header.center {
   text-align: center;
   padding-top: 8px;
@@ -123,10 +112,6 @@ input {
 
 .card-hint.center {
   margin-top: -4px;
-}
-
-.empty-state {
-  align-items: flex-start;
 }
 
 /* ---------- Buttons ---------- */
@@ -306,21 +291,10 @@ input:focus-visible {
   margin-top: 2px;
 }
 
-.alert ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
-}
-
 .alert-error {
   background: var(--danger-soft);
   border-color: var(--danger-border);
   color: var(--danger);
-}
-
-.alert-warn {
-  background: var(--warn-soft);
-  border-color: var(--warn-border);
-  color: var(--warn);
 }
 
 /* ---------- Result ---------- */

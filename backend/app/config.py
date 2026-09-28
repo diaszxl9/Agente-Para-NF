@@ -21,11 +21,6 @@ class Settings(BaseSettings):
 
     API_KEY: str = ""
 
-    DATABASE_URL: str = "mysql+pymysql://root:@localhost:3306/gestao_financeira?charset=utf8mb4"
-
-    MONGODB_URL: str = ""
-    MONGODB_DB: str = "gestao_financeira"
-
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     MAX_UPLOAD_MB: int = 10
 

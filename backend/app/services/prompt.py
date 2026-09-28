@@ -27,7 +27,7 @@ Interprete os produtos/serviços da nota e classifique a despesa. Não copie um 
 Use SOMENTE as categorias abaixo. "categoria" deve ser exatamente um dos grupos {grupos_json} e "subcategoria" exatamente uma das subcategorias listadas para aquele grupo.
 Se nenhuma categoria se aplicar com segurança, use null em "categoria" e "subcategoria".
 
-Categorias cadastradas (GRUPO: subcategorias):
+Categorias permitidas (GRUPO: subcategorias):
 {lista_categorias}
 
 Exemplos de raciocínio: "Óleo Diesel" -> MANUTENÇÃO E OPERAÇÃO / Combustíveis e Lubrificantes; "Tubo PVC e conexões hidráulicas" -> INFRAESTRUTURA E UTILIDADES / Materiais de Construção.

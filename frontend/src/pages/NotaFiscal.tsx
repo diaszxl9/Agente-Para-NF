@@ -83,20 +83,6 @@ export function NotaFiscalPage() {
             </span>
           </div>
 
-          {resultado.avisos.length > 0 && (
-            <div className="alert alert-warn" role="status">
-              <Icon name="alert" />
-              <div>
-                <strong>Confira estes pontos antes de usar os dados:</strong>
-                <ul>
-                  {resultado.avisos.map((aviso, i) => (
-                    <li key={i}>{aviso}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-
           <Tabs
             tabs={[
               { id: "formatada", label: "Visualização Formatada" },

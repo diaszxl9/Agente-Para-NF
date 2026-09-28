@@ -34,17 +34,14 @@ def test_extracao_sucesso(client, usar_gemini):
     assert dados["valor_total"] == 2500.0
     assert dados["parcelas"] == [{"numero": 1, "data_vencimento": "2026-10-21", "valor": 2500.0}]
     assert dados["despesas"] == [{"categoria": "MANUTENÇÃO E OPERAÇÃO", "subcategoria": "Combustíveis e Lubrificantes"}]
-    assert body["avisos"] == []
     assert body["arquivo"] == {"nome": "nf.pdf", "tamanho_bytes": len(PDF_MINIMO)}
-    assert "INSUMOS AGRÍCOLAS" in fake.ultimo_prompt  # categorias cadastradas vão no prompt
+    assert "INSUMOS AGRÍCOLAS" in fake.ultimo_prompt  # categorias permitidas vão no prompt
 
 
 def test_categoria_inventada_pela_ia_e_descartada(client, usar_gemini):
     dados = {**JSON_OK, "despesas": [{"categoria": "COISAS ALEATÓRIAS", "subcategoria": "Nada"}]}
     usar_gemini(FakeGemini([json.dumps(dados)]))
-    body = enviar(client).json()
-    assert body["dados"]["despesas"] == []
-    assert any("não está cadastrada" in a for a in body["avisos"])
+    assert enviar(client).json()["dados"]["despesas"] == []
 
 
 def test_categoria_inferida_pela_subcategoria(client, usar_gemini):
@@ -53,12 +50,10 @@ def test_categoria_inferida_pela_subcategoria(client, usar_gemini):
     assert enviar(client).json()["dados"]["despesas"] == [{"categoria": "INSUMOS AGRÍCOLAS", "subcategoria": "Sementes"}]
 
 
-def test_sem_parcelas_gera_uma_parcela_com_aviso(client, usar_gemini):
+def test_sem_parcelas_gera_uma_parcela_com_o_total(client, usar_gemini):
     dados = {**JSON_OK, "parcelas": []}
     usar_gemini(FakeGemini([json.dumps(dados)]))
-    body = enviar(client).json()
-    assert body["dados"]["parcelas"] == [{"numero": 1, "data_vencimento": None, "valor": 2500.0}]
-    assert any("não informa parcelas" in a for a in body["avisos"])
+    assert enviar(client).json()["dados"]["parcelas"] == [{"numero": 1, "data_vencimento": None, "valor": 2500.0}]
 
 
 def test_campos_ausentes_ficam_null_e_nada_e_inventado(client, usar_gemini):
@@ -67,14 +62,6 @@ def test_campos_ausentes_ficam_null_e_nada_e_inventado(client, usar_gemini):
     assert dados["fornecedor"] == {"razao_social": None, "fantasia": None, "cnpj": None}
     assert dados["valor_total"] is None
     assert dados["parcelas"] == [] and dados["itens"] == []
-
-
-def test_cnpj_invalido_gera_aviso_e_soma_divergente_tambem(client, usar_gemini):
-    dados = {**JSON_OK, "fornecedor": {**JSON_OK["fornecedor"], "cnpj": "12345678000100"}, "valor_total": 3000}
-    usar_gemini(FakeGemini([json.dumps(dados)]))
-    avisos = enviar(client).json()["avisos"]
-    assert any("dígitos verificadores" in a for a in avisos)
-    assert any("soma das parcelas" in a for a in avisos)
 
 
 def test_json_em_cerca_markdown_e_aceito(client, usar_gemini):

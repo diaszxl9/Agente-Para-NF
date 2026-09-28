@@ -1,7 +1,7 @@
 # Dependências do backend. Instale com backend/setup.ps1 (Windows) ou backend/setup.sh (Linux/macOS):
 # "python -m venv" apenas CRIA o ambiente virtual vazio, ele não instala nada.
 # Cada pacote tem um teto de versão maior (<N+1) para evitar que uma major nova quebre o projeto.
-# Versões validadas com a suíte de testes: fastapi 0.141, pydantic 2.13, sqlalchemy 2.0, google-genai 2.25.
+# Versões validadas com a suíte de testes: fastapi 0.141, pydantic 2.13, google-genai 2.25.
 
 # API
 fastapi>=0.115,<1
@@ -12,12 +12,6 @@ slowapi>=0.1.9,<1            # rate limiting
 # Configuração e validação
 pydantic>=2.9,<3
 pydantic-settings>=2.5,<3
-
-# Banco de dados
-sqlalchemy>=2.0,<3
-pymysql>=1.1,<2
-cryptography>=42,<51         # exigido pelo PyMySQL para autenticar no MySQL 8 (caching_sha2_password)
-pymongo>=4.8,<5              # MongoDB opcional (só é usado se MONGODB_URL estiver definida)
 
 # IA
 google-genai>=1.0,<3

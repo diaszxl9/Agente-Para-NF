@@ -29,28 +29,6 @@ def only_digits(value: str) -> str:
     return re.sub(r"\D", "", value)
 
 
-def _check_digit(digits: str, weights: list[int]) -> int:
-    total = sum(int(d) * w for d, w in zip(digits, weights))
-    rest = total % 11
-    return 0 if rest < 2 else 11 - rest
-
-
-def cnpj_is_valid(digits: str) -> bool:
-    if len(digits) != 14 or len(set(digits)) == 1:
-        return False
-    d1 = _check_digit(digits[:12], [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-    d2 = _check_digit(digits[:12] + str(d1), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-    return digits[12:] == f"{d1}{d2}"
-
-
-def cpf_is_valid(digits: str) -> bool:
-    if len(digits) != 11 or len(set(digits)) == 1:
-        return False
-    d1 = _check_digit(digits[:9], list(range(10, 1, -1)))
-    d2 = _check_digit(digits[:9] + str(d1), list(range(11, 1, -1)))
-    return digits[9:] == f"{d1}{d2}"
-
-
 def format_cnpj(value: Any) -> str | None:
     text = clean_text(value)
     if not text:

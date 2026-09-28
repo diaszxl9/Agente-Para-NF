@@ -87,7 +87,7 @@ Push-Location $backend
 try {
     Invoke-Checked "importar a aplicação" $venvPython @(
         "-c",
-        "import app.main, cryptography, multipart, pymongo, pytest, httpx; print('Aplicação importada com sucesso.')"
+        "import app.main, multipart, pytest, httpx; print('Aplicação importada com sucesso.')"
     )
 } finally {
     Pop-Location

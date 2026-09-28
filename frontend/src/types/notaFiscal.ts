@@ -42,8 +42,6 @@ export interface NotaFiscalExtraida {
 
 export interface ExtracaoResponse {
   dados: NotaFiscalExtraida;
-  avisos: string[];
   arquivo: { nome: string; tamanho_bytes: number };
   modelo: string;
-  documento_id: string | null;
 }

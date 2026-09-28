@@ -16,17 +16,13 @@ from app.schemas.nota_fiscal import (
     Parcela,
 )
 from app.schemas.nota_fiscal import Fornecedor as FornecedorSchema
-from app.services import mongo_store
 from app.services.gemini_service import GeminiError, GeminiService
 from app.services.prompt import build_prompt
 from app.services.sanitize import (
     clean_text,
-    cnpj_is_valid,
-    cpf_is_valid,
     format_cnpj,
     format_cpf,
     normalize_key,
-    only_digits,
     parse_date,
     parse_number,
 )
@@ -35,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 MAX_ITENS = 500
 MAX_PARCELAS = 120
-TOLERANCIA_VALOR = 0.01
 
 
 def parse_ia_json(text: str) -> GeminiRawResponse:
@@ -56,9 +51,7 @@ def parse_ia_json(text: str) -> GeminiRawResponse:
         raise ValueError("O JSON da IA não segue a estrutura esperada.") from exc
 
 
-def _classificar(
-    raw_despesas: list[dict | None], categorias: dict[str, list[str]], avisos: list[str]
-) -> list[Despesa]:
+def _classificar(raw_despesas: list[dict | None], categorias: dict[str, list[str]]) -> list[Despesa]:
     grupos = {normalize_key(g): g for g in categorias}
     subs_por_grupo = {g: {normalize_key(s): s for s in subs} for g, subs in categorias.items()}
     resultado: list[Despesa] = []
@@ -81,51 +74,26 @@ def _classificar(
                     grupo = candidatos[0]
                     sub_nome = subs_por_grupo[grupo][chave]
 
-        if cat_txt and not grupo:
-            avisos.append(f"Categoria '{cat_txt}' sugerida pela IA não está cadastrada e foi descartada.")
-        if sub_txt and not sub_nome:
-            avisos.append(f"Subcategoria '{sub_txt}' sugerida pela IA não está cadastrada e foi descartada.")
         if grupo:
             despesa = Despesa(categoria=grupo, subcategoria=sub_nome)
             if despesa not in resultado:
                 resultado.append(despesa)
-
-    if not resultado:
-        avisos.append("Não foi possível classificar a despesa com as categorias cadastradas.")
     return resultado
 
 
-def montar_resultado(
-    raw: GeminiRawResponse, categorias: dict[str, list[str]]
-) -> tuple[NotaFiscalExtraida, list[str]]:
-    avisos: list[str] = []
-
+def montar_resultado(raw: GeminiRawResponse, categorias: dict[str, list[str]]) -> NotaFiscalExtraida:
     forn = raw.fornecedor or {}
-    cnpj = format_cnpj(forn.get("cnpj"))
-    if forn.get("cnpj") and not cnpj:
-        avisos.append("O CNPJ do fornecedor não tem 14 dígitos e foi descartado.")
-    elif cnpj and not cnpj_is_valid(only_digits(cnpj)):
-        avisos.append("O CNPJ do fornecedor tem dígitos verificadores inválidos. Confira no documento.")
     fornecedor = FornecedorSchema(
         razao_social=clean_text(forn.get("razao_social")),
         fantasia=clean_text(forn.get("fantasia") or forn.get("nome_fantasia")),
-        cnpj=cnpj,
+        cnpj=format_cnpj(forn.get("cnpj")),
     )
 
     fat = raw.faturado or {}
-    cpf = format_cpf(fat.get("cpf"))
-    if fat.get("cpf") and not cpf:
-        avisos.append("O CPF do faturado não tem 11 dígitos e foi descartado.")
-    elif cpf and not cpf_is_valid(only_digits(cpf)):
-        avisos.append("O CPF do faturado tem dígitos verificadores inválidos. Confira no documento.")
-    faturado = Faturado(nome_completo=clean_text(fat.get("nome_completo")), cpf=cpf)
+    faturado = Faturado(nome_completo=clean_text(fat.get("nome_completo")), cpf=format_cpf(fat.get("cpf")))
 
     nf = raw.nota_fiscal or {}
-    numero = clean_text(nf.get("numero"), 60)
-    data_emissao = parse_date(nf.get("data_emissao"))
-    if nf.get("data_emissao") and not data_emissao:
-        avisos.append("A data de emissão retornada pela IA é inválida e foi descartada.")
-    nota = NotaFiscalInfo(numero=numero, data_emissao=data_emissao)
+    nota = NotaFiscalInfo(numero=clean_text(nf.get("numero"), 60), data_emissao=parse_date(nf.get("data_emissao")))
 
     itens: list[Item] = []
     for entry in (raw.itens or [])[:MAX_ITENS]:
@@ -158,32 +126,16 @@ def montar_resultado(
 
     if not parcelas and valor_total is not None:
         parcelas = [Parcela(numero=1, data_vencimento=None, valor=valor_total)]
-        avisos.append(
-            "A nota não informa parcelas: foi considerada 1 parcela com o valor total e vencimento não informado."
-        )
 
-    soma = sum(p.valor for p in parcelas if p.valor is not None)
-    if valor_total is not None and parcelas and all(p.valor is not None for p in parcelas):
-        if abs(soma - valor_total) > TOLERANCIA_VALOR:
-            avisos.append(
-                f"A soma das parcelas ({soma:.2f}) difere do valor total da nota ({valor_total:.2f})."
-            )
-
-    if not itens:
-        avisos.append("Nenhum item/produto foi identificado na nota.")
-
-    despesas = _classificar(raw.despesas or [], categorias, avisos)
-
-    resultado = NotaFiscalExtraida(
+    return NotaFiscalExtraida(
         fornecedor=fornecedor,
         faturado=faturado,
         nota_fiscal=nota,
         itens=itens,
         parcelas=parcelas,
         valor_total=valor_total,
-        despesas=despesas,
+        despesas=_classificar(raw.despesas or [], categorias),
     )
-    return resultado, avisos
 
 
 def extrair_nota_fiscal(
@@ -195,26 +147,17 @@ def extrair_nota_fiscal(
     prompt = build_prompt(categorias)
 
     raw: GeminiRawResponse | None = None
-    texto_ia = ""
     for tentativa in (1, 2):
-        texto_ia = gemini.gerar_json(pdf_bytes, prompt)
         try:
-            raw = parse_ia_json(texto_ia)
+            raw = parse_ia_json(gemini.gerar_json(pdf_bytes, prompt))
             break
         except ValueError as exc:
             logger.warning("Resposta inválida do Gemini (tentativa %s): %s", tentativa, exc)
     if raw is None:
-        mongo_store.salvar_documento(nome_arquivo, pdf_bytes, texto_ia, None, gemini.model, "ERRO_JSON_INVALIDO")
         raise GeminiError("A IA retornou uma resposta inválida. Tente extrair novamente.", 502)
 
-    dados, avisos = montar_resultado(raw, categorias)
-    documento_id = mongo_store.salvar_documento(
-        nome_arquivo, pdf_bytes, texto_ia, dados.model_dump(mode="json"), gemini.model, "SUCESSO"
-    )
     return ExtracaoResponse(
-        dados=dados,
-        avisos=avisos,
+        dados=montar_resultado(raw, categorias),
         arquivo=ArquivoInfo(nome=nome_arquivo, tamanho_bytes=len(pdf_bytes)),
         modelo=gemini.model,
-        documento_id=documento_id,
     )

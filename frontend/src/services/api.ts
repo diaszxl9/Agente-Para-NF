@@ -46,14 +46,6 @@ export async function request<T>(path: string, init?: RequestInit, timeoutMs = 3
   return body as T;
 }
 
-export function jsonInit(method: string, payload?: unknown): RequestInit {
-  return {
-    method,
-    headers: payload === undefined ? undefined : { "Content-Type": "application/json" },
-    body: payload === undefined ? undefined : JSON.stringify(payload),
-  };
-}
-
 export function mensagemDeErro(error: unknown): string {
   return error instanceof ApiError ? error.message : "Ocorreu um erro inesperado. Tente novamente.";
 }

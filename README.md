@@ -1,22 +1,19 @@
-# Gestão Financeira + Extração de Notas Fiscais com IA
+# Extração de Notas Fiscais com IA
 
-Aplicação web para extrair dados de notas fiscais em PDF com o Google Gemini, classificar a despesa e
-visualizar o resultado (formatado e em JSON). Base para o módulo financeiro (cadastros, contas a pagar/receber).
+Aplicação web que lê notas fiscais em PDF com o Google Gemini, classifica a despesa e mostra o resultado
+(formatado e em JSON).
 
 - **Frontend:** React + TypeScript + Vite (`frontend/`)
-- **Backend:** Python + FastAPI + Pydantic + SQLAlchemy (`backend/`)
+- **Backend:** Python + FastAPI + Pydantic (`backend/`)
 - **IA:** Google Gemini (chave somente no backend)
-- **Banco principal:** MySQL · **MongoDB:** opcional (documentos brutos)
 
 ```
-Frontend (React) --HTTP/REST--> FastAPI --> MySQL
-                                   |------> Gemini
-                                   '------> MongoDB (opcional)
+Frontend (React) --HTTP/REST--> FastAPI --> Gemini
 ```
 
 ## Como rodar
 
-Pré-requisitos: Python 3.11+, Node 20+, MySQL 8 e uma chave do Gemini.
+Pré-requisitos: Python 3.11+, Node 20+ e uma chave do Gemini.
 
 Os comandos abaixo são para **PowerShell (Windows)**, sempre a partir da raiz do projeto. Os equivalentes para
 Linux/macOS estão logo depois.
@@ -24,9 +21,8 @@ Linux/macOS estão logo depois.
 ### Primeira vez (instalação)
 
 ```powershell
-# 1) Configuração: copie o .env e preencha GEMINI_API_KEY e DATABASE_URL
+# 1) Configuração: copie o .env e preencha GEMINI_API_KEY
 Copy-Item .env.example .env
-# No MySQL: CREATE DATABASE gestao_financeira CHARACTER SET utf8mb4;
 
 # 2) Backend: cria o ambiente virtual E instala todas as dependências (recria o .venv se estiver incompleto)
 powershell -ExecutionPolicy Bypass -File backend\setup.ps1
@@ -44,7 +40,7 @@ cd ..
 
 ### Dia a dia (iniciar o projeto)
 
-Abra **dois terminais** na raiz do projeto e confira se o MySQL está ligado.
+Abra **dois terminais** na raiz do projeto.
 
 ```powershell
 # Terminal 1: backend em http://localhost:8000 (documentação em /docs)
@@ -76,11 +72,9 @@ cd frontend && npm run dev
 
 ### Observações
 
-- As tabelas e as categorias de despesa iniciais são criadas automaticamente na primeira conexão com o MySQL.
 - O `.env` fica na **raiz** do projeto, não em `backend/`.
 - O Vite encaminha `/api` para `http://127.0.0.1:8000` (altere com `VITE_PROXY_TARGET` ou defina `VITE_API_URL`).
-- Os avisos `Banco de dados indisponível` e `API_KEY não configurada` na inicialização não impedem o backend de subir:
-  o primeiro indica que o MySQL está desligado ou que o `DATABASE_URL` está errado; o segundo está explicado em
+- O aviso `API_KEY não configurada` na inicialização não impede o backend de subir; ele está explicado em
   [Autenticação da API](#autenticação-da-api).
 
 ### Problemas comuns
@@ -110,48 +104,23 @@ ao frontend.
 IP quando não está. Ao estourar o limite, a resposta é `429` e o Gemini **não é chamado**. Ajuste o valor conforme o
 volume real de uso (ex.: `100/hour` para lotes maiores).
 
-A extração (`/nota-fiscal`) **não depende do MySQL para funcionar**: se o banco estiver fora do ar, o backend usa as
-categorias padrão. Já os cadastros e o dashboard exigem o MySQL.
-
 ## Fluxo da extração
 
 `POST /api/notas-fiscais/extrair` (`multipart/form-data`, campo `arquivo`)
 
 1. Valida o arquivo: extensão `.pdf`, tipo, assinatura `%PDF-`, não vazio, tamanho máximo (`MAX_UPLOAD_MB`).
-2. Monta o prompt com as **categorias de despesa ativas cadastradas** (`tipos_despesa`) e envia o PDF ao Gemini
+2. Monta o prompt com as **categorias de despesa** de `backend/app/services/categorias.py` e envia o PDF ao Gemini
    (temperatura 0, resposta em JSON).
 3. A resposta **nunca é confiada diretamente**: é parseada (com 1 nova tentativa se vier JSON inválido), validada com
-   Pydantic e sanitizada (CNPJ/CPF, datas, números, textos). Categorias fora da lista cadastrada são descartadas.
-4. Regras aplicadas no backend: campo não encontrado = `null`; sem parcelas informadas = 1 parcela com o valor total;
-   avisos são devolvidos quando há inconsistências (CNPJ/CPF com dígito verificador inválido, soma das parcelas
-   diferente do total, categoria não cadastrada etc.).
-5. Resposta: `{ dados, avisos, arquivo, modelo, documento_id }`. O JSON de `dados` segue a estrutura do enunciado, com o
+   Pydantic e sanitizada (CNPJ/CPF, datas, números, textos). Categorias fora da lista são descartadas.
+4. Regras aplicadas no backend: campo não encontrado = `null`; sem parcelas informadas = 1 parcela com o valor total.
+5. Resposta: `{ dados, arquivo, modelo }`. O JSON de `dados` segue a estrutura do enunciado, com o
    campo extra `subcategoria` em `despesas`.
-
-Com `MONGODB_URL` definido, o documento processado (nome, hash, resposta bruta do Gemini, JSON final, status) é gravado
-na coleção `documentos_nf`. Falhas do Mongo são ignoradas — o MySQL segue como fonte principal.
-
-## Modelo de dados (MySQL)
-
-`fornecedores`, `clientes`, `faturados`, `tipos_despesa` (categoria = `grupo`, subcategoria = `nome`), `tipos_receita`,
-`notas_fiscais`, `itens_nota`, `contas_pagar`, `contas_receber`, `parcelas` (de conta a pagar **ou** a receber),
-`conta_pagar_despesas`, `conta_receber_receitas`. Com PKs, FKs, índices, constraints e timestamps.
-
-Nenhum cadastro é excluído fisicamente: a API não tem `DELETE`; existem `PATCH /{id}/inativar` e `/{id}/reativar`.
-
-## Status por fase
-
-| Fase | Escopo | Situação |
-| --- | --- | --- |
-| 1 | Upload → FastAPI → Gemini → classificação → JSON → tela | Implementada |
-| 2 | CRUD de Fornecedores, Clientes, Faturados, Tipos de Despesa/Receita (inativação lógica) | Implementada |
-| 3 | Contas a pagar/receber, parcelas | Tabelas prontas; telas/endpoints pendentes |
-| 4 | Nota extraída → preencher conta a pagar | Pendente |
 
 ## Testes
 
 ```powershell
-# Backend: SQLite em memória, Gemini simulado
+# Backend: Gemini simulado
 cd backend
 .venv\Scripts\python.exe -m pytest
 cd ..

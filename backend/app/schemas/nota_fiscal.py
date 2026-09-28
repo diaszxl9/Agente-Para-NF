@@ -54,10 +54,8 @@ class ArquivoInfo(BaseModel):
 
 class ExtracaoResponse(BaseModel):
     dados: NotaFiscalExtraida
-    avisos: list[str] = Field(default_factory=list)
     arquivo: ArquivoInfo
     modelo: str
-    documento_id: str | None = None
 
 
 class GeminiRawResponse(BaseModel):

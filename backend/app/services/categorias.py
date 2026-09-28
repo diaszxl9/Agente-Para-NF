@@ -1,4 +1,4 @@
-CATEGORIAS_PADRAO: dict[str, list[str]] = {
+CATEGORIAS: dict[str, list[str]] = {
     "INSUMOS AGRÍCOLAS": [
         "Sementes",
         "Fertilizantes",

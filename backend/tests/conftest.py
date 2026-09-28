@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.notas_fiscais import get_gemini_service
-from app.database import session as db_session
 from app.main import app
 from app.rate_limit import limiter
 from app.services.gemini_service import GeminiError
@@ -25,12 +24,6 @@ class FakeGemini:
         if self.erro:
             raise self.erro
         return self.respostas.pop(0)
-
-
-@pytest.fixture(autouse=True)
-def banco_memoria():
-    db_session.configure_engine("sqlite://")
-    yield
 
 
 @pytest.fixture(autouse=True)
