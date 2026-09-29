@@ -1,14 +1,23 @@
+import { encerrarSessao, obterSessao } from "./session";
+
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 
 export class ApiError extends Error {
   status: number;
+  codigo: string | null;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, codigo: string | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.codigo = codigo;
   }
+}
+
+function codigoDoErro(body: unknown): string | null {
+  const codigo = (body as { codigo?: unknown } | null)?.codigo;
+  return typeof codigo === "string" ? codigo : null;
 }
 
 function mensagemDoErro(body: unknown, status: number): string {
@@ -28,6 +37,8 @@ export async function request<T>(path: string, init?: RequestInit, timeoutMs = 3
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const headers = new Headers(init?.headers);
   if (API_KEY) headers.set("X-API-Key", API_KEY);
+  const token = obterSessao()?.token;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   let response: Response;
   try {
@@ -42,7 +53,11 @@ export async function request<T>(path: string, init?: RequestInit, timeoutMs = 3
   }
 
   const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(mensagemDoErro(body, response.status), response.status);
+  // Sessão expirada/inválida: volta para a tela de login.
+  if (response.status === 401 && token) encerrarSessao();
+  if (!response.ok) {
+    throw new ApiError(mensagemDoErro(body, response.status), response.status, codigoDoErro(body));
+  }
   return body as T;
 }
 

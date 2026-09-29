@@ -2,29 +2,31 @@ import { useRef, useState } from "react";
 import { formatBytes } from "../utils/format";
 import { Icon } from "./Icon";
 
-export const MAX_UPLOAD_MB = 10;
+// Usado até o frontend receber o limite configurado no servidor (MAX_UPLOAD_MB do backend).
+export const MAX_UPLOAD_MB_PADRAO = 10;
 
 interface FileUploadProps {
   file: File | null;
+  maxMb?: number;
   disabled?: boolean;
   onSelect: (file: File | null) => void;
   onInvalid: (message: string) => void;
 }
 
-function validar(file: File): string | null {
+function validar(file: File, maxMb: number): string | null {
   if (!file.name.toLowerCase().endsWith(".pdf")) return "Selecione um arquivo no formato PDF.";
   if (file.size === 0) return "O arquivo selecionado está vazio.";
-  if (file.size > MAX_UPLOAD_MB * 1024 * 1024) return `O arquivo excede o limite de ${MAX_UPLOAD_MB} MB.`;
+  if (file.size > maxMb * 1024 * 1024) return `O arquivo excede o limite de ${maxMb} MB.`;
   return null;
 }
 
-export function FileUpload({ file, disabled, onSelect, onInvalid }: FileUploadProps) {
+export function FileUpload({ file, maxMb = MAX_UPLOAD_MB_PADRAO, disabled, onSelect, onInvalid }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   function aceitar(candidate: File | undefined) {
     if (!candidate) return;
-    const erro = validar(candidate);
+    const erro = validar(candidate, maxMb);
     if (erro) {
       onInvalid(erro);
       return;
@@ -71,7 +73,7 @@ export function FileUpload({ file, disabled, onSelect, onInvalid }: FileUploadPr
           <button type="button" className="btn btn-secondary" disabled={disabled} onClick={() => inputRef.current?.click()}>
             Escolher arquivo
           </button>
-          <small>Somente .pdf · até {MAX_UPLOAD_MB} MB</small>
+          <small>Somente .pdf · até {maxMb} MB</small>
         </div>
       ) : (
         <div className="file-chip">

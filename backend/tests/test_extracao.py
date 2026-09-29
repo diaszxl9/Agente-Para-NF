@@ -1,7 +1,9 @@
 import json
 
+import pytest
 from tests.conftest import PDF_MINIMO, FakeGemini
 
+from app.config import get_settings
 from app.services.gemini_service import GeminiError
 
 JSON_OK = {
@@ -122,17 +124,10 @@ def test_nome_do_arquivo_e_sanitizado(client, usar_gemini):
     assert r.json()["arquivo"]["nome"] == "nf.pdf"
 
 
-def test_sem_chave_gemini_retorna_503(client, monkeypatch):
-    from app.config import get_settings
-
-    monkeypatch.setattr(get_settings(), "GEMINI_API_KEY", "")
-    from app.api.notas_fiscais import get_gemini_service
-
-    get_gemini_service.cache_clear()
+def test_sem_chave_gemini_informada_retorna_400(client):
     r = enviar(client)
-    assert r.status_code == 503
-    assert "GEMINI_API_KEY" in r.json()["detail"]
-    get_gemini_service.cache_clear()
+    assert r.status_code == 400
+    assert "Gemini API Key" in r.json()["detail"]
 
 
 def test_rate_limit_bloqueia_apos_o_limite(client, usar_gemini, monkeypatch):
@@ -160,3 +155,28 @@ def test_rate_limit_nao_e_burlado_com_x_api_key_aleatorio(client, usar_gemini, m
     assert enviar(client, headers={"X-API-Key": "falsa-2"}).status_code == 200
     assert enviar(client, headers={"X-API-Key": "falsa-3"}).status_code == 429
     assert fake.chamadas == 2
+
+
+def test_limites_expoe_o_tamanho_maximo_configurado(client, anonimo, monkeypatch):
+    monkeypatch.setattr(get_settings(), "MAX_UPLOAD_MB", 7)
+    assert client.get("/api/notas-fiscais/limites").json() == {"max_upload_mb": 7}
+    assert anonimo.get("/api/notas-fiscais/limites").status_code == 401
+
+
+def test_chave_recusada_na_extracao_envia_codigo(client, usar_gemini):
+    from app.services.gemini_service import CODIGO_CHAVE_RECUSADA
+
+    usar_gemini(FakeGemini(erro=GeminiError("recusada", 502, codigo=CODIGO_CHAVE_RECUSADA)))
+    r = client.post("/api/notas-fiscais/extrair", files={"arquivo": ("nf.pdf", PDF_MINIMO, "application/pdf")})
+    assert r.status_code == 502
+    assert r.json()["codigo"] == CODIGO_CHAVE_RECUSADA
+
+
+@pytest.mark.parametrize(
+    "valor, decimais, esperado",
+    [("1.234", 2, 1234.0), ("1.234,56", 2, 1234.56), ("12.50", 2, 12.5), ("1.234", 4, 1.234), (1.234, 2, 1.23)],
+)
+def test_parse_number_milhar_em_valor_monetario(valor, decimais, esperado):
+    from app.services.sanitize import parse_number
+
+    assert parse_number(valor, decimais) == esperado

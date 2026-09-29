@@ -5,7 +5,8 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-_NULL_WORDS = {"", "null", "none", "n/a", "na", "nao informado", "não informado", "-"}
+_MILHAR_BR = re.compile(r"\d{1,3}\.\d{3}")
+_NULL_WORDS ={"", "null", "none", "n/a", "na", "nao informado", "não informado", "-"}
 
 
 def clean_text(value: Any, max_len: int = 255) -> str | None:
@@ -79,6 +80,9 @@ def parse_number(value: Any, decimals: int | None = None) -> float | None:
         if "," in text:
             text = text.replace(".", "").replace(",", ".")
         elif text.count(".") > 1:
+            text = text.replace(".", "")
+        elif decimals == 2 and _MILHAR_BR.fullmatch(text):
+            # Valor monetário em texto: "1.234" é mil duzentos e trinta e quatro (centavos têm 2 casas).
             text = text.replace(".", "")
         try:
             number = Decimal(text)

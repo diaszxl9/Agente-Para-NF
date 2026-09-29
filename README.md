@@ -5,15 +5,34 @@ Aplicação web que lê notas fiscais em PDF com o Google Gemini, classifica a d
 
 - **Frontend:** React + TypeScript + Vite (`frontend/`)
 - **Backend:** Python + FastAPI + Pydantic (`backend/`)
-- **IA:** Google Gemini (chave somente no backend)
+- **IA:** Google Gemini (a API Key é informada pelo usuário na tela; o backend a usa nas chamadas e não a armazena)
 
 ```
 Frontend (React) --HTTP/REST--> FastAPI --> Gemini
 ```
 
+## Como testar
+
+Credenciais de teste (somente para avaliação; configuráveis por `AUTH_USUARIO` / `AUTH_SENHA`):
+
+| Usuário | Senha |
+| --- | --- |
+| `professor` | `avaliacao123` |
+
+1. Acessar a aplicação;
+2. Fazer login com as credenciais acima;
+3. Informar uma Gemini API Key válida (gere uma em https://aistudio.google.com/apikey);
+4. Clicar em "Validar API Key";
+5. Selecionar um PDF de nota fiscal;
+6. Clicar em "Extrair Dados";
+7. Visualizar os dados extraídos.
+
+O botão "Extrair Dados" só é habilitado depois que a API Key é validada. A chave fica apenas na memória da tela
+(não é salva no navegador nem no servidor): ao recarregar a página ou clicar em "Sair", é preciso informá-la de novo.
+
 ## Como rodar
 
-Pré-requisitos: Python 3.11+, Node 20+ e uma chave do Gemini.
+Pré-requisitos: Python 3.11+ e Node 20+. A chave do Gemini é informada na tela, não no `.env`.
 
 Os comandos abaixo são para **PowerShell (Windows)**, sempre a partir da raiz do projeto. Os equivalentes para
 Linux/macOS estão logo depois.
@@ -21,7 +40,7 @@ Linux/macOS estão logo depois.
 ### Primeira vez (instalação)
 
 ```powershell
-# 1) Configuração: copie o .env e preencha GEMINI_API_KEY
+# 1) Configuração: copie o .env (os valores padrão já funcionam localmente)
 Copy-Item .env.example .env
 
 # 2) Backend: cria o ambiente virtual E instala todas as dependências (recria o .venv se estiver incompleto)
@@ -76,6 +95,24 @@ cd frontend && npm run dev
 - O Vite encaminha `/api` para `http://127.0.0.1:8000` (altere com `VITE_PROXY_TARGET` ou defina `VITE_API_URL`).
 - O aviso `API_KEY não configurada` na inicialização não impede o backend de subir; ele está explicado em
   [Autenticação da API](#autenticação-da-api).
+
+### Variáveis de ambiente
+
+Backend (`.env` na raiz, ou variáveis do serviço de hospedagem). Todas têm valor padrão; veja `.env.example`.
+
+| Variável | Para que serve |
+| --- | --- |
+| `AUTH_USUARIO` / `AUTH_SENHA` | Credenciais de login (padrão: as de teste acima) |
+| `AUTH_SECRET` | Segredo que assina as sessões. **Defina em produção** (ex.: `openssl rand -hex 32`); sem ele, as sessões caem a cada reinício do servidor |
+| `AUTH_SESSAO_HORAS` | Duração da sessão de login (padrão `8`) |
+| `CORS_ORIGINS` | Origem(ns) do frontend, ex.: `https://meu-front.exemplo.com` |
+| `GEMINI_MODEL` | Modelo do Gemini usado na validação e na extração |
+| `GEMINI_TIMEOUT_SECONDS` / `GEMINI_TEMPO_MAXIMO_SECONDS` | Limite de cada chamada ao Gemini (padrão `120`) e da extração inteira, somando retentativas (padrão `240`). O frontend espera até 260 s; se aumentar o limite total, ajuste `EXTRACTION_TIMEOUT_MS` em `frontend/src/services/notaFiscalService.ts` |
+| `GEMINI_MAX_TENTATIVAS` | Tentativas em erros 5xx transitórios do Gemini (padrão `4`) |
+| `MAX_UPLOAD_MB`, `RATE_LIMIT_*`, `API_KEY` | Limites e proteção opcional, descritos abaixo |
+
+Frontend (no build): `VITE_API_URL` com a URL pública do backend quando frontend e backend estiverem em domínios
+diferentes (ex.: `VITE_API_URL=https://meu-back.exemplo.com npm run build`). Localmente não é necessário.
 
 ### Problemas comuns
 
