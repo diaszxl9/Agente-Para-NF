@@ -108,7 +108,8 @@ Backend (`.env` na raiz, ou variáveis do serviço de hospedagem). Todas têm va
 | `CORS_ORIGINS` | Origem(ns) do frontend, ex.: `https://meu-front.exemplo.com` |
 | `GEMINI_MODEL` | Modelo do Gemini usado na validação e na extração |
 | `GEMINI_TIMEOUT_SECONDS` / `GEMINI_TEMPO_MAXIMO_SECONDS` | Limite de cada chamada ao Gemini (padrão `120`) e da extração inteira, somando retentativas (padrão `240`). O frontend espera até 260 s; se aumentar o limite total, ajuste `EXTRACTION_TIMEOUT_MS` em `frontend/src/services/notaFiscalService.ts` |
-| `GEMINI_MAX_TENTATIVAS` | Tentativas em erros 5xx transitórios do Gemini (padrão `4`) |
+| `GEMINI_MAX_TENTATIVAS` | Tentativas em erros 5xx transitórios do Gemini (padrão `1` = sem retentativas, 1 chamada por extração) |
+| `GEMINI_NIVEL_RACIOCINIO` | Raciocínio ("thinking") do modelo: `minimal`/`low`/`medium`/`high` (padrão `minimal`). Vazio = padrão do modelo; use vazio em modelos anteriores ao Gemini 3 |
 | `MAX_UPLOAD_MB`, `RATE_LIMIT_*`, `API_KEY` | Limites e proteção opcional, descritos abaixo |
 
 Frontend (no build): `VITE_API_URL` com a URL pública do backend quando frontend e backend estiverem em domínios
@@ -137,7 +138,7 @@ ao frontend.
 ## Rate limiting da extração
 
 `POST /api/notas-fiscais/extrair` chama a API paga do Gemini a cada requisição, então tem um limite de taxa próprio
-(`RATE_LIMIT_EXTRACAO` no `.env`, padrão `20/minute`), aplicado por API key quando `API_KEY` está configurada, ou por
+(`RATE_LIMIT_EXTRACAO` no `.env`, padrão `5/minute`), aplicado por API key quando `API_KEY` está configurada, ou por
 IP quando não está. Ao estourar o limite, a resposta é `429` e o Gemini **não é chamado**. Ajuste o valor conforme o
 volume real de uso (ex.: `100/hour` para lotes maiores).
 
@@ -148,7 +149,7 @@ volume real de uso (ex.: `100/hour` para lotes maiores).
 1. Valida o arquivo: extensão `.pdf`, tipo, assinatura `%PDF-`, não vazio, tamanho máximo (`MAX_UPLOAD_MB`).
 2. Monta o prompt com as **categorias de despesa** de `backend/app/services/categorias.py` e envia o PDF ao Gemini
    (temperatura 0, resposta em JSON).
-3. A resposta **nunca é confiada diretamente**: é parseada (com 1 nova tentativa se vier JSON inválido), validada com
+3. A resposta **nunca é confiada diretamente**: é parseada (sem nova tentativa automática se vier JSON inválido, para não consumir a cota do Gemini), validada com
    Pydantic e sanitizada (CNPJ/CPF, datas, números, textos). Categorias fora da lista são descartadas.
 4. Regras aplicadas no backend: campo não encontrado = `null`; sem parcelas informadas = 1 parcela com o valor total.
 5. Resposta: `{ dados, arquivo, modelo }`. O JSON de `dados` segue a estrutura do enunciado, com o

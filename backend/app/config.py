@@ -19,7 +19,12 @@ class Settings(BaseSettings):
     # A Gemini API Key NÃO fica no servidor: o usuário informa na tela e ela chega a cada requisição.
     GEMINI_MODEL: str = "gemini-3.6-flash"
     GEMINI_TIMEOUT_SECONDS: int = 120  # limite de cada chamada ao Gemini
-    GEMINI_MAX_TENTATIVAS: int = 4  # 1 chamada + retentativas em erros 5xx transitórios
+    # 1 = sem retentativas: cada extração faz no máximo 1 chamada ao Gemini (cotas gratuitas são de poucas por minuto).
+    GEMINI_MAX_TENTATIVAS: int = 1  # 1 chamada + retentativas em erros 5xx transitórios
+    # Nível de raciocínio ("thinking") do modelo: minimal/low/medium/high. Tokens de raciocínio são cobrados e
+    # contam na cota; para extrair dados o mínimo basta. Vazio = padrão do modelo (modelos anteriores ao Gemini 3
+    # não aceitam este parâmetro).
+    GEMINI_NIVEL_RACIOCINIO: str = "minimal"
     # Tempo máximo de uma extração inteira (todas as chamadas e retentativas somadas). O frontend espera um
     # pouco mais que isso (EXTRACTION_TIMEOUT_MS em notaFiscalService.ts); se aumentar aqui, aumente lá também.
     GEMINI_TEMPO_MAXIMO_SECONDS: int = 240
@@ -36,7 +41,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     MAX_UPLOAD_MB: int = 10
 
-    RATE_LIMIT_EXTRACAO: str = "20/minute"
+    RATE_LIMIT_EXTRACAO: str = "5/minute"
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_VALIDACAO: str = "20/minute"
 

@@ -71,18 +71,12 @@ def test_json_em_cerca_markdown_e_aceito(client, usar_gemini):
     assert enviar(client).status_code == 200
 
 
-def test_json_invalido_tenta_de_novo_e_depois_falha(client, usar_gemini):
-    fake = usar_gemini(FakeGemini(["isto não é json", "nem isto"]))
+def test_json_invalido_falha_sem_nova_chamada(client, usar_gemini):
+    fake = usar_gemini(FakeGemini(["isto não é json", json.dumps(JSON_OK)]))
     r = enviar(client)
     assert r.status_code == 502
-    assert fake.chamadas == 2
+    assert fake.chamadas == 1  # não repete: cada chamada consome a cota do Gemini
     assert "inválida" in r.json()["detail"]
-
-
-def test_json_invalido_na_primeira_e_valido_na_segunda(client, usar_gemini):
-    fake = usar_gemini(FakeGemini(["lixo", json.dumps(JSON_OK)]))
-    assert enviar(client).status_code == 200
-    assert fake.chamadas == 2
 
 
 def test_erro_do_gemini_e_repassado_sem_vazar_detalhes(client, usar_gemini):

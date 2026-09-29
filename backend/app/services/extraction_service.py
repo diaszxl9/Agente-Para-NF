@@ -146,15 +146,12 @@ def extrair_nota_fiscal(
 ) -> ExtracaoResponse:
     prompt = build_prompt(categorias)
 
-    raw: GeminiRawResponse | None = None
-    for tentativa in (1, 2):
-        try:
-            raw = parse_ia_json(gemini.gerar_json(pdf_bytes, prompt))
-            break
-        except ValueError as exc:
-            logger.warning("Resposta inválida do Gemini (tentativa %s): %s", tentativa, exc)
-    if raw is None:
-        raise GeminiError("A IA retornou uma resposta inválida. Tente extrair novamente.", 502)
+    # Sem nova tentativa automática em JSON inválido: cada extração faz 1 chamada, para não estourar a cota do Gemini.
+    try:
+        raw = parse_ia_json(gemini.gerar_json(pdf_bytes, prompt))
+    except ValueError as exc:
+        logger.warning("Resposta inválida do Gemini: %s", exc)
+        raise GeminiError("A IA retornou uma resposta inválida. Tente extrair novamente.", 502) from exc
 
     return ExtracaoResponse(
         dados=montar_resultado(raw, categorias),

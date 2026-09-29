@@ -36,7 +36,8 @@ class _FakeClient:
 def servico(monkeypatch):
     monkeypatch.setattr(gemini_service.genai, "Client", _FakeClient)
     monkeypatch.setattr(gemini_service.time, "sleep", lambda _s: None)
-    return GeminiService(Settings(GEMINI_MODEL="modelo-x", _env_file=None), "chave-teste")
+    # Retentativas ligadas aqui para testar a lógica; o padrão é 1 (sem retentativas).
+    return GeminiService(Settings(GEMINI_MODEL="modelo-x", GEMINI_MAX_TENTATIVAS=4, _env_file=None), "chave-teste")
 
 
 def test_envia_pdf_inline_com_json_e_temperatura_zero(servico):
@@ -51,6 +52,23 @@ def test_envia_pdf_inline_com_json_e_temperatura_zero(servico):
     assert prompt == "meu prompt"
     assert kwargs["config"].response_mime_type == "application/json"
     assert kwargs["config"].temperature == 0
+    assert kwargs["config"].thinking_config.thinking_level == "MINIMAL"
+
+
+def test_padrao_faz_uma_unica_chamada_em_503(monkeypatch):
+    chamadas = []
+
+    def gerar(self, **kwargs):
+        chamadas.append(1)
+        raise errors.ServerError(503, {"error": {"message": "high demand"}})
+
+    monkeypatch.setattr(gemini_service.genai, "Client", _FakeClient)
+    monkeypatch.setattr(_FakeModels, "generate_content", gerar)
+    _FakeClient.result = None
+    servico = GeminiService(Settings(_env_file=None), "chave-teste")
+    with pytest.raises(GeminiError):
+        servico.gerar_json(b"%PDF-", "p")
+    assert len(chamadas) == 1
 
 
 @pytest.mark.parametrize(

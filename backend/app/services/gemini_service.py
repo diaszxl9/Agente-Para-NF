@@ -52,6 +52,8 @@ class GeminiService:
         self._api_key = api_key
         self._timeout_s = float(settings.GEMINI_TIMEOUT_SECONDS)
         self._tentativas = max(1, settings.GEMINI_MAX_TENTATIVAS)
+        nivel = settings.GEMINI_NIVEL_RACIOCINIO.strip()
+        self._thinking = types.ThinkingConfig(thinking_level=nivel.upper()) if nivel else None
         self._prazo = time.monotonic() + settings.GEMINI_TEMPO_MAXIMO_SECONDS
         self._client: genai.Client | None = None
 
@@ -111,6 +113,7 @@ class GeminiService:
                     config=types.GenerateContentConfig(
                         temperature=0,
                         response_mime_type="application/json",
+                        thinking_config=self._thinking,
                         http_options=types.HttpOptions(timeout=timeout_ms),
                     ),
                 )
