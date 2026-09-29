@@ -18,13 +18,11 @@ export function NotaFiscalPage() {
   const [resultado, setResultado] = useState<ExtracaoResponse | null>(null);
   const [aba, setAba] = useState<Aba>("formatada");
   const [geminiApiKey, setGeminiApiKey] = useState<string | null>(null);
-  // Incrementado quando o Gemini recusa a chave: recria o campo da chave, que precisa ser validada de novo.
   const [versaoChave, setVersaoChave] = useState(0);
   const [maxUploadMb, setMaxUploadMb] = useState(MAX_UPLOAD_MB_PADRAO);
 
   useEffect(() => {
     let ativo = true;
-    // Se falhar, mantém o padrão: o backend valida o tamanho de qualquer forma.
     obterLimites()
       .then((l) => ativo && setMaxUploadMb(l.max_upload_mb))
       .catch(() => undefined);
@@ -61,6 +59,9 @@ export function NotaFiscalPage() {
   return (
     <div className="page page-narrow">
       <header className="page-header center">
+        <span className="commit-hash" title="Último commit">
+          #{__COMMIT_HASH__}
+        </span>
         <h1>Extração de Dados de Nota Fiscal</h1>
       </header>
 
