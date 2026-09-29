@@ -1,9 +1,10 @@
 import logging
-from functools import lru_cache
 from pathlib import PurePosixPath
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from pydantic import BaseModel
 
+from app.api.gemini import get_gemini_service
 from app.config import Settings, get_settings
 from app.rate_limit import limiter
 from app.schemas.nota_fiscal import ExtracaoResponse
@@ -20,11 +21,6 @@ PDF_CONTENT_TYPES = {"application/pdf", "application/x-pdf", "application/octet-
 MULTIPART_OVERHEAD_BYTES = 1024 * 1024
 
 
-@lru_cache
-def get_gemini_service() -> GeminiService:
-    return GeminiService(get_settings())
-
-
 def _nome_seguro(filename: str | None) -> str:
     base = PurePosixPath((filename or "").replace("\\", "/")).name
     return clean_text(base, 200) or "nota-fiscal.pdf"
@@ -39,6 +35,16 @@ def validar_pdf(nome: str, content_type: str | None, data: bytes) -> None:
         raise HTTPException(status_code=400, detail="O arquivo enviado está vazio.")
     if not data.startswith(b"%PDF-"):
         raise HTTPException(status_code=415, detail="O conteúdo do arquivo não é um PDF válido.")
+
+
+class LimitesResponse(BaseModel):
+    max_upload_mb: int
+
+
+@router.get("/limites", response_model=LimitesResponse)
+def limites(settings: Settings = Depends(get_settings)) -> LimitesResponse:
+    """Limites configurados no servidor, para o frontend validar o arquivo antes de enviar."""
+    return LimitesResponse(max_upload_mb=settings.MAX_UPLOAD_MB)
 
 
 @router.post("/extrair", response_model=ExtracaoResponse)
