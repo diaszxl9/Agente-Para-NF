@@ -73,6 +73,20 @@ input {
   max-width: 820px;
 }
 
+.page-login {
+  max-width: 420px;
+  padding-top: 6vh;
+}
+
+.session-bar {
+  max-width: 820px;
+  margin: -24px auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .page-header h1 {
   font-size: 26px;
   letter-spacing: -0.02em;
@@ -195,6 +209,41 @@ input:focus-visible {
   color: var(--text);
 }
 
+/* ---------- Forms ---------- */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px 14px;
+}
+
+.input:disabled {
+  background: var(--bg);
+}
+
+.key-row {
+  display: flex;
+  gap: 10px;
+}
+
+.key-row .btn {
+  flex: none;
+}
+
 .spinner {
   width: 16px;
   height: 16px;
@@ -202,6 +251,11 @@ input:focus-visible {
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+.spinner-dark {
+  border-color: rgba(27, 36, 55, 0.2);
+  border-top-color: var(--text);
 }
 
 @keyframes spin {
@@ -295,6 +349,12 @@ input:focus-visible {
   background: var(--danger-soft);
   border-color: var(--danger-border);
   color: var(--danger);
+}
+
+.alert-success {
+  background: var(--ok-soft);
+  border-color: #b5e3c9;
+  color: var(--ok);
 }
 
 /* ---------- Result ---------- */
@@ -520,5 +580,15 @@ input:focus-visible {
 
   .page-header h1 {
     font-size: 22px;
+  }
+
+  .session-bar {
+    margin-top: -12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .key-row {
+    flex-direction: column;
   }
 }

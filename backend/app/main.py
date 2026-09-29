@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.api.router import api_router
+from app.auth import credenciais_configuradas
 from app.config import get_settings
 from app.rate_limit import limiter
 from app.services.gemini_service import GeminiError
@@ -17,7 +18,15 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if not get_settings().API_KEY:
+    settings = get_settings()
+    if not credenciais_configuradas(settings):
+        logger.error("AUTH_USUARIO/AUTH_SENHA não configurados: nenhum login será aceito. Defina-os no .env.")
+    if not settings.AUTH_SECRET:
+        logger.warning(
+            "AUTH_SECRET não configurado: usando um segredo temporário, e as sessões de login deixam de valer "
+            "quando o servidor reinicia. Defina AUTH_SECRET no ambiente de produção."
+        )
+    if not settings.API_KEY:
         logger.warning(
             "API_KEY não configurada: a API está acessível sem autenticação. "
             "Defina API_KEY no .env para exigir o header X-API-Key."
@@ -40,7 +49,10 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(GeminiError)
     async def gemini_error_handler(_: Request, exc: GeminiError):
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+        content = {"detail": exc.message}
+        if exc.codigo:
+            content["codigo"] = exc.codigo
+        return JSONResponse(status_code=exc.status_code, content=content)
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(_: Request, __: RateLimitExceeded):
