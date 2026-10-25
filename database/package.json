@@ -1,0 +1,15 @@
+{
+  "name": "agente-nf-database",
+  "private": true,
+  "description": "Schema e migrations do PostgreSQL (Prisma). O backend Python acessa as tabelas com SQL.",
+  "scripts": {
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:status": "prisma migrate status",
+    "validate": "prisma validate",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "prisma": "7.10.1"
+  }
+}

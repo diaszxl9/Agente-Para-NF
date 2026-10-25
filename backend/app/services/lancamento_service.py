@@ -4,8 +4,7 @@ Fluxo: consultar fornecedor -> consultar faturado -> consultar classificações 
 -> criar movimento -> criar parcelas. O lançamento roda numa única transação: qualquer erro desfaz tudo.
 """
 
-import sqlite3
-
+from app.db import ERROS_INTEGRIDADE, Conexao
 from app.schemas.financeiro import (
     AnaliseResponse,
     ClassificacaoIn,
@@ -25,7 +24,7 @@ from app.services.sanitize import format_documento, only_digits
 MENSAGEM_SUCESSO = "Registro lançado com sucesso."
 
 
-def _consultar_pessoa(conn: sqlite3.Connection, entidade: str, nome: str | None, documento: str | None) -> ConsultaPessoa:
+def _consultar_pessoa(conn: Conexao, entidade: str, nome: str | None, documento: str | None) -> ConsultaPessoa:
     existente = cadastros.buscar_pessoa(conn, entidade, documento, nome)
     if existente:
         return ConsultaPessoa(
@@ -71,7 +70,7 @@ def _pendencias_da_nota(dados: NotaFiscalExtraida) -> list[str]:
     return pendencias
 
 
-def analisar(conn: sqlite3.Connection, dados: NotaFiscalExtraida) -> AnaliseResponse:
+def analisar(conn: Conexao, dados: NotaFiscalExtraida) -> AnaliseResponse:
     pendencias: list[str] = []
 
     forn = dados.fornecedor
@@ -120,7 +119,7 @@ def _descricao_movimento(dados: NotaFiscalExtraida) -> str:
     return f"{base} - {dados.itens[0].descricao}{extra}"[:500]
 
 
-def lancar(conn: sqlite3.Connection, dados: NotaFiscalExtraida, reativar_inativos: bool) -> LancamentoResponse:
+def lancar(conn: Conexao, dados: NotaFiscalExtraida, reativar_inativos: bool) -> LancamentoResponse:
     analise = analisar(conn, dados)
     if analise.pendencias:
         raise NegocioError("Não é possível lançar: " + " ".join(analise.pendencias))
@@ -194,7 +193,7 @@ def lancar(conn: sqlite3.Connection, dados: NotaFiscalExtraida, reativar_inativo
             )
             acoes.append(f"Movimento (conta a pagar) criado (ID {movimento.id}).")
             acoes.append(f"{len(movimento.parcelas)} parcela(s) criada(s).")
-    except sqlite3.IntegrityError as exc:
+    except ERROS_INTEGRIDADE as exc:
         # Outro lançamento concorrente criou o mesmo cadastro entre a análise e a gravação: nada foi gravado.
         raise NegocioError("Conflito ao gravar o lançamento (registro duplicado). Analise a nota novamente.", 409) from exc
 

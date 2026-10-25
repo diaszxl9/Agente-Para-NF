@@ -1,5 +1,4 @@
 import logging
-import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -10,6 +9,7 @@ from slowapi.errors import RateLimitExceeded
 from app.api.router import api_router
 from app.auth import credenciais_configuradas
 from app.config import get_settings
+from app.db import ERROS_BANCO, ERROS_INTEGRIDADE
 from app.rate_limit import limiter
 from app.services.erros import NegocioError
 from app.services.gemini_service import GeminiError
@@ -63,15 +63,19 @@ def create_app() -> FastAPI:
             content["codigo"] = exc.codigo
         return JSONResponse(status_code=exc.status_code, content=content)
 
-    @app.exception_handler(sqlite3.IntegrityError)
-    async def integrity_error_handler(_: Request, exc: sqlite3.IntegrityError):
+    async def integrity_error_handler(_: Request, exc: Exception):
         logger.warning("Violação de integridade no banco: %s", exc)
         return JSONResponse(status_code=409, content={"detail": "Operação recusada: registro duplicado ou inválido."})
 
-    @app.exception_handler(sqlite3.Error)
-    async def db_error_handler(_: Request, exc: sqlite3.Error):
+    async def db_error_handler(_: Request, exc: Exception):
         logger.exception("Erro de banco de dados", exc_info=exc)
         return JSONResponse(status_code=500, content={"detail": "Erro ao acessar o banco de dados. Tente novamente."})
+
+    # SQLite (local) e PostgreSQL (produção). O Starlette escolhe o handler pela classe mais específica (MRO).
+    for erro in ERROS_INTEGRIDADE:
+        app.add_exception_handler(erro, integrity_error_handler)
+    for erro in ERROS_BANCO:
+        app.add_exception_handler(erro, db_error_handler)
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(_: Request, __: RateLimitExceeded):

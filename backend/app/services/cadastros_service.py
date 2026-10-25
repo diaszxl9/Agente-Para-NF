@@ -4,8 +4,7 @@ As funções não fazem commit: quem chama controla a transação (`with conn:`)
 numa única transação no lançamento da nota. Nada é excluído: o status alterna entre ATIVO e INATIVO.
 """
 
-import sqlite3
-
+from app.db import Conexao, Linha
 from app.schemas.financeiro import (
     ClassificacaoIn,
     ClassificacaoOut,
@@ -22,12 +21,12 @@ NOME_TIPO_CLASSIFICACAO = {"DESPESA": "Tipo de despesa", "RECEITA": "Tipo de rec
 
 
 # ---------- Pessoas ----------
-def _pessoa(row: sqlite3.Row) -> PessoaOut:
+def _pessoa(row: Linha) -> PessoaOut:
     return PessoaOut(**{**dict(row), "documento": format_documento(row["documento"]) or row["documento"]})
 
 
 def listar_pessoas(
-    conn: sqlite3.Connection, tipo: str | None = None, status: str | None = None, busca: str | None = None
+    conn: Conexao, tipo: str | None = None, status: str | None = None, busca: str | None = None
 ) -> list[PessoaOut]:
     sql, params = "SELECT * FROM pessoas WHERE 1 = 1", []
     if tipo:
@@ -36,11 +35,11 @@ def listar_pessoas(
     if status:
         sql += " AND status = ?"
         params.append(status)
-    pessoas = [_pessoa(r) for r in conn.execute(sql + " ORDER BY razao_social COLLATE NOCASE", params)]
+    pessoas = [_pessoa(r) for r in conn.execute(sql + " ORDER BY lower(razao_social), id", params)]
     return [p for p in pessoas if corresponde_busca(busca, p.razao_social, p.fantasia, p.documento)]
 
 
-def obter_pessoa(conn: sqlite3.Connection, pessoa_id: int) -> PessoaOut:
+def obter_pessoa(conn: Conexao, pessoa_id: int) -> PessoaOut:
     row = conn.execute("SELECT * FROM pessoas WHERE id = ?", (pessoa_id,)).fetchone()
     if not row:
         raise NaoEncontradoError(f"Pessoa ID {pessoa_id} não encontrada.")
@@ -48,7 +47,7 @@ def obter_pessoa(conn: sqlite3.Connection, pessoa_id: int) -> PessoaOut:
 
 
 def buscar_pessoa(
-    conn: sqlite3.Connection, tipo: str, documento: str | None = None, nome: str | None = None
+    conn: Conexao, tipo: str, documento: str | None = None, nome: str | None = None
 ) -> PessoaOut | None:
     """Procura por documento (CPF/CNPJ); sem documento, pelo nome normalizado (sem acentos/caixa)."""
     digitos = only_digits(documento or "")
@@ -73,18 +72,18 @@ def _erro_pessoa_duplicada(existente: PessoaOut) -> NegocioError:
     )
 
 
-def criar_pessoa(conn: sqlite3.Connection, dados: PessoaIn) -> PessoaOut:
+def criar_pessoa(conn: Conexao, dados: PessoaIn) -> PessoaOut:
     existente = buscar_pessoa(conn, dados.tipo, dados.documento)
     if existente:
         raise _erro_pessoa_duplicada(existente)
-    cur = conn.execute(
-        "INSERT INTO pessoas (tipo, razao_social, fantasia, documento) VALUES (?, ?, ?, ?)",
+    novo = conn.execute(
+        "INSERT INTO pessoas (tipo, razao_social, fantasia, documento) VALUES (?, ?, ?, ?) RETURNING id",
         (dados.tipo, dados.razao_social, dados.fantasia, dados.documento),
-    )
-    return obter_pessoa(conn, cur.lastrowid)
+    ).fetchone()
+    return obter_pessoa(conn, novo["id"])
 
 
-def atualizar_pessoa(conn: sqlite3.Connection, pessoa_id: int, dados: PessoaUpdate) -> PessoaOut:
+def atualizar_pessoa(conn: Conexao, pessoa_id: int, dados: PessoaUpdate) -> PessoaOut:
     atual = obter_pessoa(conn, pessoa_id)
     existente = buscar_pessoa(conn, atual.tipo, dados.documento)
     if existente and existente.id != pessoa_id:
@@ -96,7 +95,7 @@ def atualizar_pessoa(conn: sqlite3.Connection, pessoa_id: int, dados: PessoaUpda
     return obter_pessoa(conn, pessoa_id)
 
 
-def alterar_status_pessoa(conn: sqlite3.Connection, pessoa_id: int, status: str) -> PessoaOut:
+def alterar_status_pessoa(conn: Conexao, pessoa_id: int, status: str) -> PessoaOut:
     atual = obter_pessoa(conn, pessoa_id)
     if atual.status == status:
         raise NegocioError(f"{NOME_TIPO_PESSOA[atual.tipo]} ID {pessoa_id} já está {status}.", 409)
@@ -105,12 +104,12 @@ def alterar_status_pessoa(conn: sqlite3.Connection, pessoa_id: int, status: str)
 
 
 # ---------- Classificações ----------
-def _classificacao(row: sqlite3.Row) -> ClassificacaoOut:
+def _classificacao(row: Linha) -> ClassificacaoOut:
     return ClassificacaoOut(**{k: row[k] for k in ("id", "tipo", "descricao", "status", "data_cadastro")})
 
 
 def listar_classificacoes(
-    conn: sqlite3.Connection, tipo: str | None = None, status: str | None = None, busca: str | None = None
+    conn: Conexao, tipo: str | None = None, status: str | None = None, busca: str | None = None
 ) -> list[ClassificacaoOut]:
     sql, params = "SELECT * FROM classificacao WHERE 1 = 1", []
     if tipo:
@@ -119,18 +118,18 @@ def listar_classificacoes(
     if status:
         sql += " AND status = ?"
         params.append(status)
-    classificacoes = [_classificacao(r) for r in conn.execute(sql + " ORDER BY descricao COLLATE NOCASE", params)]
+    classificacoes = [_classificacao(r) for r in conn.execute(sql + " ORDER BY lower(descricao), id", params)]
     return [c for c in classificacoes if corresponde_busca(busca, c.descricao)]
 
 
-def obter_classificacao(conn: sqlite3.Connection, classificacao_id: int) -> ClassificacaoOut:
+def obter_classificacao(conn: Conexao, classificacao_id: int) -> ClassificacaoOut:
     row = conn.execute("SELECT * FROM classificacao WHERE id = ?", (classificacao_id,)).fetchone()
     if not row:
         raise NaoEncontradoError(f"Classificação ID {classificacao_id} não encontrada.")
     return _classificacao(row)
 
 
-def buscar_classificacao(conn: sqlite3.Connection, tipo: str, descricao: str) -> ClassificacaoOut | None:
+def buscar_classificacao(conn: Conexao, tipo: str, descricao: str) -> ClassificacaoOut | None:
     row = conn.execute(
         "SELECT * FROM classificacao WHERE tipo = ? AND chave = ?", (tipo, normalize_key(descricao))
     ).fetchone()
@@ -145,19 +144,19 @@ def _erro_classificacao_duplicada(existente: ClassificacaoOut) -> NegocioError:
     )
 
 
-def criar_classificacao(conn: sqlite3.Connection, dados: ClassificacaoIn) -> ClassificacaoOut:
+def criar_classificacao(conn: Conexao, dados: ClassificacaoIn) -> ClassificacaoOut:
     existente = buscar_classificacao(conn, dados.tipo, dados.descricao)
     if existente:
         raise _erro_classificacao_duplicada(existente)
-    cur = conn.execute(
-        "INSERT INTO classificacao (tipo, descricao, chave) VALUES (?, ?, ?)",
+    nova = conn.execute(
+        "INSERT INTO classificacao (tipo, descricao, chave) VALUES (?, ?, ?) RETURNING id",
         (dados.tipo, dados.descricao, normalize_key(dados.descricao)),
-    )
-    return obter_classificacao(conn, cur.lastrowid)
+    ).fetchone()
+    return obter_classificacao(conn, nova["id"])
 
 
 def atualizar_classificacao(
-    conn: sqlite3.Connection, classificacao_id: int, dados: ClassificacaoUpdate
+    conn: Conexao, classificacao_id: int, dados: ClassificacaoUpdate
 ) -> ClassificacaoOut:
     atual = obter_classificacao(conn, classificacao_id)
     existente = buscar_classificacao(conn, atual.tipo, dados.descricao)
@@ -170,7 +169,7 @@ def atualizar_classificacao(
     return obter_classificacao(conn, classificacao_id)
 
 
-def alterar_status_classificacao(conn: sqlite3.Connection, classificacao_id: int, status: str) -> ClassificacaoOut:
+def alterar_status_classificacao(conn: Conexao, classificacao_id: int, status: str) -> ClassificacaoOut:
     atual = obter_classificacao(conn, classificacao_id)
     if atual.status == status:
         raise NegocioError(f"Classificação ID {classificacao_id} já está {status}.", 409)

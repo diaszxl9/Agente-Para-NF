@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,7 +33,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     MAX_UPLOAD_MB: int = 10
 
-    # Arquivo SQLite com os cadastros, contas e parcelas. Vazio = backend/data/financeiro.db
+    # PostgreSQL (ex.: Render): postgresql://usuario:senha@host:5432/banco. As tabelas vêm das migrations do Prisma
+    # (pasta database/). Vazio = usa o SQLite local abaixo.
+    DATABASE_URL: str = ""
+    # Arquivo SQLite (somente quando DATABASE_URL está vazia). Vazio = backend/data/financeiro.db
     # (na Vercel, /tmp/financeiro.db, único diretório gravável e não persistente).
     DATABASE_PATH: str = ""
 
@@ -43,6 +47,16 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def database_url(self) -> str:
+        """DATABASE_URL sem o parâmetro "schema" do Prisma, que o driver do PostgreSQL (libpq) não aceita."""
+        url = self.DATABASE_URL.strip()
+        if not url:
+            return ""
+        partes = urlsplit(url)
+        query = [(k, v) for k, v in parse_qsl(partes.query) if k != "schema"]
+        return urlunsplit(partes._replace(query=urlencode(query)))
 
     @property
     def database_path(self) -> str:

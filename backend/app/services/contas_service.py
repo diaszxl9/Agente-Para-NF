@@ -3,8 +3,7 @@
 Como em cadastros_service, nenhuma função faz commit: a transação é de quem chama.
 """
 
-import sqlite3
-
+from app.db import Conexao, Linha
 from app.schemas.financeiro import (
     ClassificacaoResumo,
     MovimentoBase,
@@ -24,14 +23,14 @@ CLASSIFICACAO_POR_MOVIMENTO = {"PAGAR": "DESPESA", "RECEBER": "RECEITA"}
 TOLERANCIA_CENTAVOS = 0.01
 
 
-def _pessoa_resumo(conn: sqlite3.Connection, pessoa_id: int | None) -> PessoaResumo | None:
+def _pessoa_resumo(conn: Conexao, pessoa_id: int | None) -> PessoaResumo | None:
     if pessoa_id is None:
         return None
     p = obter_pessoa(conn, pessoa_id)
     return PessoaResumo(id=p.id, tipo=p.tipo, razao_social=p.razao_social, documento=p.documento, status=p.status)
 
 
-def _movimento(conn: sqlite3.Connection, row: sqlite3.Row) -> MovimentoOut:
+def _movimento(conn: Conexao, row: Linha) -> MovimentoOut:
     classificacoes = [
         ClassificacaoResumo(id=r["id"], descricao=r["descricao"], status=r["status"])
         for r in conn.execute(
@@ -64,7 +63,7 @@ def _movimento(conn: sqlite3.Connection, row: sqlite3.Row) -> MovimentoOut:
     )
 
 
-def obter_movimento(conn: sqlite3.Connection, movimento_id: int) -> MovimentoOut:
+def obter_movimento(conn: Conexao, movimento_id: int) -> MovimentoOut:
     row = conn.execute("SELECT * FROM movimentocontas WHERE id = ?", (movimento_id,)).fetchone()
     if not row:
         raise NaoEncontradoError(f"Movimento ID {movimento_id} não encontrado.")
@@ -72,7 +71,7 @@ def obter_movimento(conn: sqlite3.Connection, movimento_id: int) -> MovimentoOut
 
 
 def listar_movimentos(
-    conn: sqlite3.Connection, tipo: str | None = None, status: str | None = None, busca: str | None = None
+    conn: Conexao, tipo: str | None = None, status: str | None = None, busca: str | None = None
 ) -> list[MovimentoOut]:
     sql, params = "SELECT * FROM movimentocontas WHERE 1 = 1", []
     if tipo:
@@ -98,7 +97,7 @@ def listar_movimentos(
     ]
 
 
-def buscar_movimento_da_nota(conn: sqlite3.Connection, tipo: str, pessoa_id: int, numero_nota: str) -> int | None:
+def buscar_movimento_da_nota(conn: Conexao, tipo: str, pessoa_id: int, numero_nota: str) -> int | None:
     row = conn.execute(
         "SELECT id FROM movimentocontas WHERE tipo = ? AND pessoa_id = ? AND numero_nota = ? AND status = 'ATIVO'",
         (tipo, pessoa_id, numero_nota),
@@ -106,7 +105,7 @@ def buscar_movimento_da_nota(conn: sqlite3.Connection, tipo: str, pessoa_id: int
     return row["id"] if row else None
 
 
-def _validar_pessoa(conn: sqlite3.Connection, pessoa_id: int, tipos: tuple[str, ...], papel: str) -> None:
+def _validar_pessoa(conn: Conexao, pessoa_id: int, tipos: tuple[str, ...], papel: str) -> None:
     try:
         pessoa = obter_pessoa(conn, pessoa_id)
     except NaoEncontradoError:
@@ -119,7 +118,7 @@ def _validar_pessoa(conn: sqlite3.Connection, pessoa_id: int, tipos: tuple[str, 
 
 
 def _validar_movimento(
-    conn: sqlite3.Connection, tipo: str, dados: MovimentoBase, atual: MovimentoOut | None = None
+    conn: Conexao, tipo: str, dados: MovimentoBase, atual: MovimentoOut | None = None
 ) -> tuple[list[int], list[int]]:
     """Valida pessoas, classificações e parcelas. Na edição, o que já estava vinculado pode continuar mesmo inativo."""
     if not atual or atual.pessoa.id != dados.pessoa_id:
@@ -159,7 +158,7 @@ def _validar_movimento(
 
 
 def _gravar_vinculos(
-    conn: sqlite3.Connection, movimento_id: int, dados: MovimentoBase, classificacao_ids: list[int], numeros: list[int]
+    conn: Conexao, movimento_id: int, dados: MovimentoBase, classificacao_ids: list[int], numeros: list[int]
 ) -> None:
     conn.executemany(
         "INSERT INTO movimento_classificacao (movimento_id, classificacao_id) VALUES (?, ?)",
@@ -192,18 +191,18 @@ def _colunas_movimento(dados: MovimentoBase) -> tuple:
     )
 
 
-def criar_movimento(conn: sqlite3.Connection, dados: MovimentoIn) -> MovimentoOut:
+def criar_movimento(conn: Conexao, dados: MovimentoIn) -> MovimentoOut:
     classificacao_ids, numeros = _validar_movimento(conn, dados.tipo, dados)
-    cur = conn.execute(
+    movimento_id = conn.execute(
         "INSERT INTO movimentocontas (tipo, pessoa_id, faturado_id, numero_nota, data_emissao, descricao, valor_total) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
         (dados.tipo, *_colunas_movimento(dados)),
-    )
-    _gravar_vinculos(conn, cur.lastrowid, dados, classificacao_ids, numeros)
-    return obter_movimento(conn, cur.lastrowid)
+    ).fetchone()["id"]
+    _gravar_vinculos(conn, movimento_id, dados, classificacao_ids, numeros)
+    return obter_movimento(conn, movimento_id)
 
 
-def atualizar_movimento(conn: sqlite3.Connection, movimento_id: int, dados: MovimentoUpdate) -> MovimentoOut:
+def atualizar_movimento(conn: Conexao, movimento_id: int, dados: MovimentoUpdate) -> MovimentoOut:
     """Edita o movimento e substitui suas classificações e parcelas (o STATUS não é alterado aqui)."""
     atual = obter_movimento(conn, movimento_id)
     if atual.status != "ATIVO":
@@ -223,7 +222,7 @@ def atualizar_movimento(conn: sqlite3.Connection, movimento_id: int, dados: Movi
     return obter_movimento(conn, movimento_id)
 
 
-def alterar_status_movimento(conn: sqlite3.Connection, movimento_id: int, status: str) -> MovimentoOut:
+def alterar_status_movimento(conn: Conexao, movimento_id: int, status: str) -> MovimentoOut:
     atual = obter_movimento(conn, movimento_id)
     if atual.status == status:
         raise NegocioError(f"Movimento ID {movimento_id} já está {status}.", 409)
@@ -237,7 +236,7 @@ def alterar_status_movimento(conn: sqlite3.Connection, movimento_id: int, status
     return obter_movimento(conn, movimento_id)
 
 
-def alterar_situacao_parcela(conn: sqlite3.Connection, parcela_id: int, situacao: str) -> MovimentoOut:
+def alterar_situacao_parcela(conn: Conexao, parcela_id: int, situacao: str) -> MovimentoOut:
     row = conn.execute(
         "SELECT p.situacao, p.movimento_id, m.status FROM parcelacontas p "
         "JOIN movimentocontas m ON m.id = p.movimento_id WHERE p.id = ?",

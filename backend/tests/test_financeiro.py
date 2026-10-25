@@ -42,7 +42,7 @@ def criar_classificacao(client, tipo, descricao):
 def contar(tabela):
     conn = conectar()
     try:
-        return conn.execute(f"SELECT COUNT(*) FROM {tabela}").fetchone()[0]
+        return conn.execute(f"SELECT COUNT(*) AS n FROM {tabela}").fetchone()["n"]
     finally:
         conn.close()
 

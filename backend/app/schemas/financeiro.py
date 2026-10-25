@@ -1,7 +1,7 @@
-from datetime import date
-from typing import Literal
+from datetime import date, datetime, timedelta, timezone
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, Field, field_validator
 from pydantic_core import PydanticCustomError
 
 from app.schemas.nota_fiscal import NotaFiscalExtraida
@@ -12,6 +12,20 @@ TipoClassificacao = Literal["RECEITA", "DESPESA"]
 TipoMovimento = Literal["PAGAR", "RECEBER"]
 Status = Literal["ATIVO", "INATIVO"]
 SituacaoParcela = Literal["ABERTA", "QUITADA"]
+# Data de cadastro: texto no horário local no SQLite; timestamptz (datetime com fuso) no PostgreSQL, convertido para o
+# horário de Brasília (UTC-3, sem horário de verão desde 2019). A API sempre devolve "AAAA-MM-DD HH:MM:SS".
+FUSO_BRASILIA = timezone(timedelta(hours=-3))
+
+
+def _data_hora(valor: object) -> object:
+    if not isinstance(valor, datetime):
+        return valor
+    if valor.tzinfo is not None:
+        valor = valor.astimezone(FUSO_BRASILIA)
+    return valor.strftime("%Y-%m-%d %H:%M:%S")
+
+
+DataHora = Annotated[str, BeforeValidator(_data_hora)]
 
 
 def _texto_obrigatorio(valor: str, campo: str, max_len: int = 255) -> str:
@@ -61,7 +75,7 @@ class PessoaOut(BaseModel):
     fantasia: str | None
     documento: str
     status: Status
-    data_cadastro: str
+    data_cadastro: DataHora
 
 
 # ---------- Classificações ----------
@@ -83,7 +97,7 @@ class ClassificacaoOut(BaseModel):
     tipo: TipoClassificacao
     descricao: str
     status: Status
-    data_cadastro: str
+    data_cadastro: DataHora
 
 
 # ---------- Contas (movimentos) e parcelas ----------
@@ -156,7 +170,7 @@ class MovimentoOut(BaseModel):
     descricao: str
     valor_total: float
     status: Status
-    data_cadastro: str
+    data_cadastro: DataHora
     classificacoes: list[ClassificacaoResumo]
     parcelas: list[ParcelaOut]
 

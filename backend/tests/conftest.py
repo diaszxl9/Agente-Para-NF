@@ -1,9 +1,12 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.gemini import get_gemini_service
 from app.auth import criar_token
 from app.config import get_settings
+from app.db import conectar
 from app.main import app
 from app.rate_limit import limiter
 from app.services.gemini_service import GeminiError
@@ -41,10 +44,24 @@ def limiter_zerado():
     yield
 
 
+# Para rodar a suíte contra um PostgreSQL (já migrado com o Prisma), defina TEST_DATABASE_URL.
+# ATENÇÃO: as tabelas desse banco são esvaziadas a cada teste. Nunca aponte para o banco de produção.
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "")
+
+
 @pytest.fixture(autouse=True)
 def banco_temporario(tmp_path, monkeypatch):
-    """Cada teste usa um arquivo SQLite novo, sem tocar no banco de desenvolvimento."""
+    """Cada teste usa um banco vazio, sem tocar no banco de desenvolvimento (nem no PostgreSQL do .env)."""
+    monkeypatch.setattr(get_settings(), "DATABASE_URL", TEST_DATABASE_URL)
     monkeypatch.setattr(get_settings(), "DATABASE_PATH", str(tmp_path / "teste.db"))
+    if TEST_DATABASE_URL:
+        conn = conectar()
+        with conn:
+            conn.execute(
+                "TRUNCATE movimento_classificacao, parcelacontas, movimentocontas, classificacao, pessoas "
+                "RESTART IDENTITY CASCADE"
+            )
+        conn.close()
     yield
 
 

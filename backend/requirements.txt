@@ -13,6 +13,9 @@ slowapi>=0.1.9,<1            # rate limiting
 pydantic>=2.9,<3
 pydantic-settings>=2.5,<3
 
+# Banco de dados: PostgreSQL em produção (Render). Sem DATABASE_URL, usa o SQLite da biblioteca padrão.
+psycopg[binary]>=3.2,<4
+
 # IA
 google-genai>=1.0,<3
 

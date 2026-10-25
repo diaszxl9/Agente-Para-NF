@@ -111,6 +111,7 @@ Backend (`.env` na raiz, ou variáveis do serviço de hospedagem). Todas têm va
 | `GEMINI_MAX_TENTATIVAS` | Tentativas em erros 5xx transitórios do Gemini (padrão `1` = sem retentativas, 1 chamada por extração) |
 | `GEMINI_NIVEL_RACIOCINIO` | Raciocínio ("thinking") do modelo: `minimal`/`low`/`medium`/`high` (padrão `minimal`). Vazio = padrão do modelo; use vazio em modelos anteriores ao Gemini 3 |
 | `MAX_UPLOAD_MB`, `RATE_LIMIT_*`, `API_KEY` | Limites e proteção opcional, descritos abaixo |
+| `DATABASE_URL` | PostgreSQL (ex.: Render), `postgresql://usuario:senha@host:5432/banco`. Vazio = SQLite local (`DATABASE_PATH`). Veja [Banco de dados](#banco-de-dados-postgresql--prisma) |
 
 Frontend (no build): `VITE_API_URL` com a URL pública do backend quando frontend e backend estiverem em domínios
 diferentes (ex.: `VITE_API_URL=https://meu-back.exemplo.com npm run build`). Localmente não é necessário.
@@ -157,8 +158,8 @@ volume real de uso (ex.: `100/hour` para lotes maiores).
 
 ## Cadastros, contas e lançamento da nota
 
-O backend guarda os dados num SQLite (`DATABASE_PATH`; padrão `backend/data/financeiro.db`, criado sozinho na
-primeira requisição). Tabelas: `pessoas` (FORNECEDOR/CLIENTE/FATURADO, único por tipo + CPF/CNPJ), `classificacao`
+O backend guarda os dados no PostgreSQL quando `DATABASE_URL` está definida (produção) ou, sem ela, num SQLite local
+(`DATABASE_PATH`; padrão `backend/data/financeiro.db`, criado sozinho na primeira requisição). Tabelas: `pessoas` (FORNECEDOR/CLIENTE/FATURADO, único por tipo + CPF/CNPJ), `classificacao`
 (RECEITA/DESPESA, única por tipo + descrição sem acento/caixa), `movimentocontas` (PAGAR/RECEBER), a ligação N:N
 `movimento_classificacao` e `parcelacontas` (cada parcela com vencimento, valor e situação).
 
@@ -171,12 +172,56 @@ primeira requisição). Tabelas: `pessoas` (FORNECEDOR/CLIENTE/FATURADO, único 
   usuário confirmar a reativação. Parcela sem vencimento, falta de classificação, soma das parcelas diferente do
   total e nota já lançada bloqueiam o lançamento com a explicação na tela.
 
+## Banco de dados (PostgreSQL + Prisma)
+
+As tabelas do PostgreSQL são definidas e criadas pelo **Prisma**, na pasta `database/`:
+
+- `database/prisma/schema.prisma`: tabelas, enums (tipo, status, situação), chaves estrangeiras e índices únicos;
+- `database/prisma/migrations/`: o SQL que cria tudo (inclui restrições `CHECK`, como valor > 0 e CPF/CNPJ com 11/14
+  dígitos).
+
+O Prisma cuida **somente do schema**. O backend Python acessa as tabelas com SQL (driver `psycopg`), usando os
+mesmos nomes de tabelas e colunas. Sem `DATABASE_URL`, o backend usa o SQLite local, cujo schema fica em
+`backend/app/db.py` e espelha o do Prisma. Ao mudar uma tabela, altere os dois e crie uma migration nova
+(`npm run migrate:dev`, com um PostgreSQL local).
+
+### Criar as tabelas no Render
+
+1. No Render, crie um **PostgreSQL** (New → Postgres). Em *Connections*, copie a **External Database URL**.
+2. Crie as tabelas a partir do seu computador (requer Node.js):
+
+   ```powershell
+   cd database
+   npm install
+   $env:DATABASE_URL = "postgresql://...external-url-do-render..."
+   npm run migrate:deploy     # aplica as migrations (pode rodar de novo: só aplica o que falta)
+   npm run migrate:status     # confere: "Database schema is up to date!"
+   ```
+
+   Também dá para colocar `DATABASE_URL=...` no `.env` da raiz: o `database/prisma.config.ts` lê esse arquivo.
+3. No serviço do backend, defina a variável de ambiente `DATABASE_URL`:
+   - backend **no Render**: use a **Internal Database URL** (rede interna, mais rápida);
+   - backend em outro lugar (ex.: Vercel): use a **External Database URL**.
+
+   Para o backend no Render aplicar as migrations sozinho a cada deploy, use como *Build Command*
+   `pip install -r requirements.txt && cd ../database && npm ci && npm run migrate:deploy` (com *Root Directory*
+   = `backend`).
+
+Para ver e editar os dados numa interface: `cd database && npm run studio`.
+
 ## Testes
 
 ```powershell
 # Backend: Gemini simulado
 cd backend
 .venv\Scripts\python.exe -m pytest
+cd ..
+
+# Backend contra um PostgreSQL de TESTE já migrado (as tabelas são esvaziadas a cada teste: nunca use o de produção)
+cd backend
+$env:TEST_DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5432/teste"
+.venv\Scripts\python.exe -m pytest
+Remove-Item Env:TEST_DATABASE_URL
 cd ..
 
 # Frontend: typecheck + build
