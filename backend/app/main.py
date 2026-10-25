@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -10,6 +11,7 @@ from app.api.router import api_router
 from app.auth import credenciais_configuradas
 from app.config import get_settings
 from app.rate_limit import limiter
+from app.services.erros import NegocioError
 from app.services.gemini_service import GeminiError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -43,7 +45,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -53,6 +55,23 @@ def create_app() -> FastAPI:
         if exc.codigo:
             content["codigo"] = exc.codigo
         return JSONResponse(status_code=exc.status_code, content=content)
+
+    @app.exception_handler(NegocioError)
+    async def negocio_error_handler(_: Request, exc: NegocioError):
+        content = {"detail": exc.message}
+        if exc.codigo:
+            content["codigo"] = exc.codigo
+        return JSONResponse(status_code=exc.status_code, content=content)
+
+    @app.exception_handler(sqlite3.IntegrityError)
+    async def integrity_error_handler(_: Request, exc: sqlite3.IntegrityError):
+        logger.warning("Violação de integridade no banco: %s", exc)
+        return JSONResponse(status_code=409, content={"detail": "Operação recusada: registro duplicado ou inválido."})
+
+    @app.exception_handler(sqlite3.Error)
+    async def db_error_handler(_: Request, exc: sqlite3.Error):
+        logger.exception("Erro de banco de dados", exc_info=exc)
+        return JSONResponse(status_code=500, content={"detail": "Erro ao acessar o banco de dados. Tente novamente."})
 
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_handler(_: Request, __: RateLimitExceeded):

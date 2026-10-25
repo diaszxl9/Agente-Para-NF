@@ -12,3 +12,6 @@ __pycache__/
 node_modules/
 dist/
 *.log
+
+# Banco SQLite local
+backend/data/

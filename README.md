@@ -155,6 +155,22 @@ volume real de uso (ex.: `100/hour` para lotes maiores).
 5. Resposta: `{ dados, arquivo, modelo }`. O JSON de `dados` segue a estrutura do enunciado, com o
    campo extra `subcategoria` em `despesas`.
 
+## Cadastros, contas e lançamento da nota
+
+O backend guarda os dados num SQLite (`DATABASE_PATH`; padrão `backend/data/financeiro.db`, criado sozinho na
+primeira requisição). Tabelas: `pessoas` (FORNECEDOR/CLIENTE/FATURADO, único por tipo + CPF/CNPJ), `classificacao`
+(RECEITA/DESPESA, única por tipo + descrição sem acento/caixa), `movimentocontas` (PAGAR/RECEBER), a ligação N:N
+`movimento_classificacao` e `parcelacontas` (cada parcela com vencimento, valor e situação).
+
+- **Nada é excluído.** Não existe DELETE: pessoas, classificações e movimentos são **inativados/reativados**.
+- Menu lateral: Extração de NF, Fornecedores, Clientes, Faturados, Tipos de Receita/Despesa, Contas a Pagar/Receber.
+- **Segunda etapa da extração:** depois de extrair, a tela consulta o banco (`POST /api/lancamentos/analisar`) e
+  mostra, para fornecedor, faturado e cada despesa, se **EXISTE — ID** ou **NÃO EXISTE**. "Lançar registro"
+  (`POST /api/lancamentos`) cria o que falta, o movimento (PAGAR) e as parcelas **numa única transação**: se algo
+  falhar, nada fica gravado. Cadastros encontrados **inativos** não são duplicados: o lançamento só segue se o
+  usuário confirmar a reativação. Parcela sem vencimento, falta de classificação, soma das parcelas diferente do
+  total e nota já lançada bloqueiam o lançamento com a explicação na tela.
+
 ## Testes
 
 ```powershell

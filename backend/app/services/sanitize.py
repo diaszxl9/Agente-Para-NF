@@ -30,6 +30,24 @@ def only_digits(value: str) -> str:
     return re.sub(r"\D", "", value)
 
 
+def corresponde_busca(busca: str | None, *campos: str | None) -> bool:
+    """Busca por mais de um elemento: cada termo (separado por espaço) precisa aparecer em algum dos campos.
+
+    Ignora acentos e caixa. Termo numérico (ex.: "11222333" ou "11.222.333") também casa com documento formatado.
+    """
+    termos = normalize_key(busca or "").split()
+    textos = [normalize_key(c) for c in campos if c]
+    digitos = [only_digits(c) for c in campos if c]
+
+    def casa(termo: str) -> bool:
+        if any(termo in t for t in textos):
+            return True
+        numero = only_digits(termo)
+        return bool(numero) and re.fullmatch(r"[\d./-]+", termo) is not None and any(numero in d for d in digitos)
+
+    return all(casa(t) for t in termos)
+
+
 def format_cnpj(value: Any) -> str | None:
     text = clean_text(value)
     if not text:
@@ -48,6 +66,11 @@ def format_cpf(value: Any) -> str | None:
     if len(d) != 11:
         return None
     return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
+
+
+def format_documento(value: Any) -> str | None:
+    """CPF ou CNPJ formatado conforme a quantidade de dígitos."""
+    return format_cpf(value) or format_cnpj(value)
 
 
 def parse_date(value: Any) -> date | None:

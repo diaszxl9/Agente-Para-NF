@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -31,6 +32,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     MAX_UPLOAD_MB: int = 10
 
+    # Arquivo SQLite com os cadastros, contas e parcelas. Vazio = backend/data/financeiro.db
+    # (na Vercel, /tmp/financeiro.db, único diretório gravável e não persistente).
+    DATABASE_PATH: str = ""
+
     RATE_LIMIT_EXTRACAO: str = "5/minute"
     RATE_LIMIT_LOGIN: str = "10/minute"
     RATE_LIMIT_VALIDACAO: str = "20/minute"
@@ -38,6 +43,14 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def database_path(self) -> str:
+        if self.DATABASE_PATH:
+            return self.DATABASE_PATH
+        if os.environ.get("VERCEL"):
+            return "/tmp/financeiro.db"
+        return str(BACKEND_DIR / "data" / "financeiro.db")
 
     @property
     def max_upload_bytes(self) -> int:

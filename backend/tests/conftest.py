@@ -41,6 +41,13 @@ def limiter_zerado():
     yield
 
 
+@pytest.fixture(autouse=True)
+def banco_temporario(tmp_path, monkeypatch):
+    """Cada teste usa um arquivo SQLite novo, sem tocar no banco de desenvolvimento."""
+    monkeypatch.setattr(get_settings(), "DATABASE_PATH", str(tmp_path / "teste.db"))
+    yield
+
+
 def auth_headers() -> dict[str, str]:
     token, _ = criar_token(get_settings().AUTH_USUARIO, get_settings())
     return {"Authorization": f"Bearer {token}"}

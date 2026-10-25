@@ -4,6 +4,7 @@ import { FileUpload, MAX_UPLOAD_MB_PADRAO } from "../components/FileUpload";
 import { GeminiApiKey } from "../components/GeminiApiKey";
 import { Icon } from "../components/Icon";
 import { JsonViewer } from "../components/JsonViewer";
+import { LancamentoNota } from "../components/LancamentoNota";
 import { Tabs } from "../components/Tabs";
 import { ApiError, mensagemDeErro } from "../services/api";
 import { CODIGO_CHAVE_RECUSADA, extrairNotaFiscal, obterLimites } from "../services/notaFiscalService";
@@ -126,6 +127,8 @@ export function NotaFiscalPage() {
           {aba === "formatada" ? <ExtractedView dados={resultado.dados} /> : <JsonViewer value={resultado.dados} />}
         </section>
       )}
+
+      {resultado && <LancamentoNota dados={resultado.dados} />}
     </div>
   );
 }
