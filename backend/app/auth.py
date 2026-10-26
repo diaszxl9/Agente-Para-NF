@@ -8,19 +8,20 @@ import base64
 import hashlib
 import hmac
 import json
-import secrets
 import time
 
 from fastapi import Depends, Header, HTTPException
 
 from app.config import Settings, get_settings
 
-# Usado somente quando AUTH_SECRET não está definido: tokens deixam de valer quando o processo reinicia.
-_SEGREDO_PROCESSO = secrets.token_bytes(32)
-
-
 def _segredo(settings: Settings) -> bytes:
-    return settings.AUTH_SECRET.encode() if settings.AUTH_SECRET else _SEGREDO_PROCESSO
+    if settings.AUTH_SECRET:
+        return settings.AUTH_SECRET.encode()
+    # Sem AUTH_SECRET: segredo derivado das credenciais, igual em todas as instâncias e reinícios. Um segredo
+    # aleatório por processo derrubava a sessão em hospedagem serverless (cada requisição pode cair numa instância
+    # diferente) e a cada reload do servidor local. Trocar a senha invalida as sessões abertas.
+    base = f"agente-nf/sessao|{settings.AUTH_USUARIO.strip().lower()}|{settings.AUTH_SENHA}"
+    return hashlib.sha256(base.encode()).digest()
 
 
 def _b64(data: bytes) -> str:

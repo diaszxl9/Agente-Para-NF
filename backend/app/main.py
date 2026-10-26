@@ -25,8 +25,8 @@ async def lifespan(_: FastAPI):
         logger.error("AUTH_USUARIO/AUTH_SENHA não configurados: nenhum login será aceito. Defina-os no .env.")
     if not settings.AUTH_SECRET:
         logger.warning(
-            "AUTH_SECRET não configurado: usando um segredo temporário, e as sessões de login deixam de valer "
-            "quando o servidor reinicia. Defina AUTH_SECRET no ambiente de produção."
+            "AUTH_SECRET não configurado: as sessões são assinadas com um segredo derivado do usuário e da senha. "
+            "Defina AUTH_SECRET (valor aleatório forte) no ambiente de produção."
         )
     if not settings.API_KEY:
         logger.warning(

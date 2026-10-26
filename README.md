@@ -103,7 +103,7 @@ Backend (`.env` na raiz, ou variáveis do serviço de hospedagem). Todas têm va
 | Variável | Para que serve |
 | --- | --- |
 | `AUTH_USUARIO` / `AUTH_SENHA` | Credenciais de login (padrão: as de teste acima) |
-| `AUTH_SECRET` | Segredo que assina as sessões. **Defina em produção** (ex.: `openssl rand -hex 32`); sem ele, as sessões caem a cada reinício do servidor |
+| `AUTH_SECRET` | Segredo que assina as sessões. **Defina em produção** (ex.: `openssl rand -hex 32`); sem ele, o segredo é derivado de `AUTH_USUARIO`/`AUTH_SENHA` (quem souber a senha consegue forjar sessões, e trocar a senha derruba as sessões abertas) |
 | `AUTH_SESSAO_HORAS` | Duração da sessão de login (padrão `8`) |
 | `CORS_ORIGINS` | Origem(ns) do frontend, ex.: `https://meu-front.exemplo.com` |
 | `GEMINI_MODEL` | Modelo do Gemini usado na validação e na extração |

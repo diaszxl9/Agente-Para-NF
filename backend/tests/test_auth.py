@@ -2,8 +2,8 @@ import time
 
 from tests.conftest import FakeGemini
 
-from app.auth import criar_token
-from app.config import get_settings
+from app.auth import criar_token, ler_token
+from app.config import Settings, get_settings
 from app.services.gemini_service import GeminiError
 
 
@@ -54,6 +54,16 @@ def test_token_adulterado_ou_expirado_e_recusado(anonimo, monkeypatch):
     for t in (adulterado, expirado, "lixo", ""):
         r = anonimo.post("/api/gemini/validar", headers={"Authorization": f"Bearer {t}"})
         assert r.status_code == 401
+
+
+def test_sem_auth_secret_sessao_vale_em_outra_instancia():
+    """Hospedagem serverless: o login cai numa instância e as próximas requisições em outras (ou após reinício)."""
+    instancia_login = Settings(AUTH_SECRET="", AUTH_USUARIO="professor", AUTH_SENHA="s3nha")
+    token, _ = criar_token("professor", instancia_login)
+
+    assert ler_token(token, Settings(AUTH_SECRET="", AUTH_USUARIO="professor", AUTH_SENHA="s3nha")) == "professor"
+    # Trocar a senha invalida as sessões abertas.
+    assert ler_token(token, Settings(AUTH_SECRET="", AUTH_USUARIO="professor", AUTH_SENHA="nova")) is None
 
 
 def test_validar_api_key_valida(client, usar_gemini):
