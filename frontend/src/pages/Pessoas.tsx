@@ -40,14 +40,14 @@ export function PessoasPage({ tipo }: { tipo: TipoPessoa }) {
   const consultar = useCallback((f: FiltroConsulta) => listarPessoas(tipo, f.status, f.busca), [tipo]);
   const listagem = useListagem(consultar);
   const { ordenada, ordem, ordenarPor } = useOrdenacao(listagem.lista ?? [], COLUNAS, "nome");
-  const { limpar } = listagem;
+  const { iniciar } = listagem;
 
   useEffect(() => {
     setForm(VAZIO);
     setEditando(null);
     setMensagem(null);
-    limpar();
-  }, [tipo, limpar]);
+    iniciar();
+  }, [tipo, iniciar]);
 
   async function salvar(e: FormEvent) {
     e.preventDefault();

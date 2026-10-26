@@ -78,14 +78,14 @@ export function ContasPage({ tipo }: { tipo: TipoMovimento }) {
   const consultar = useCallback((f: FiltroConsulta) => listarContas(tipo, f.status, f.busca), [tipo]);
   const listagem = useListagem(consultar);
   const { ordenada, ordem, ordenarPor } = useOrdenacao(listagem.lista ?? [], COLUNAS, "id");
-  const { limpar } = listagem;
+  const { iniciar } = listagem;
 
   useEffect(() => {
     setForm(novoForm());
     setEditando(null);
     setMensagem(null);
     setMensagemLista(null);
-    limpar();
+    iniciar();
     // Somente cadastros ATIVOS podem ser usados em um novo movimento.
     const principais = pagar
       ? listarPessoas("FORNECEDOR", "ATIVO")
@@ -97,7 +97,7 @@ export function ContasPage({ tipo }: { tipo: TipoMovimento }) {
         setClassificacoes(c);
       })
       .catch((e) => setMensagem({ tipo: "erro", texto: mensagemDeErro(e) }));
-  }, [tipo, pagar, limpar]);
+  }, [tipo, pagar, iniciar]);
 
   function alterarParcela(i: number, campo: keyof LinhaParcela, valor: string) {
     setForm((f) => ({ ...f, parcelas: f.parcelas.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)) }));
