@@ -5,7 +5,7 @@ import { Icon } from "./Icon";
 
 /*
  * Padrão de layout das telas de cadastro:
- *  - a tabela abre já carregada com TODOS (somente status ATIVO); a BUSCA traz ativos e inativos;
+ *  - a tabela abre vazia; os dados vêm pela BUSCA (ativos e inativos) ou por TODOS (somente status ATIVO);
  *  - a busca aceita mais de um elemento (termos separados por espaço, todos precisam casar);
  *  - clique no cabeçalho ordena pela coluna;
  *  - ações da linha: Editar / Excluir (lógico = inativar). Excluídos encontrados pela busca podem ser reativados.
@@ -47,21 +47,12 @@ export function useListagem<T>(consultar: (filtro: FiltroConsulta) => Promise<T[
     setCarregando(false);
   }, []);
 
-  const todos = useCallback(() => executar({ todos: true }), [executar]);
-
-  // Ao abrir a tela (ou trocar o tipo), descarta a lista anterior e já carrega os registros ativos.
-  const iniciar = useCallback(() => {
-    limpar();
-    void todos();
-  }, [limpar, todos]);
-
   return {
     lista,
     carregando,
     erro,
     buscar: (busca: string) => executar({ busca }),
-    todos,
-    iniciar,
+    todos: () => executar({ todos: true }),
     // Depois de salvar/excluir, repete a última consulta (se houver) para a tabela refletir a alteração.
     recarregar: () => (consulta ? executar(consulta) : Promise.resolve()),
     limpar,

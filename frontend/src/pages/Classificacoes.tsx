@@ -37,14 +37,14 @@ export function ClassificacoesPage({ tipo }: { tipo: TipoClassificacao }) {
   const consultar = useCallback((f: FiltroConsulta) => listarClassificacoes(tipo, f.status, f.busca), [tipo]);
   const listagem = useListagem(consultar);
   const { ordenada, ordem, ordenarPor } = useOrdenacao(listagem.lista ?? [], COLUNAS, "descricao");
-  const { iniciar } = listagem;
+  const { limpar } = listagem;
 
   useEffect(() => {
     setDescricao("");
     setEditando(null);
     setMensagem(null);
-    iniciar();
-  }, [tipo, iniciar]);
+    limpar();
+  }, [tipo, limpar]);
 
   async function salvar(e: FormEvent) {
     e.preventDefault();
